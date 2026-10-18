@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { login, mockApi, prepare, translateAndDownload, zipText } from './helpers.js';
 import { FIXTURES } from './fixtures.js';
+import { API_URL } from '../../playwright.config.js';
 
 test.describe('RF-01 RF-02 RF-03 RF-04 caricamento e opzioni', () => {
   test('rileva la lingua, propone italiano e il formato di ingresso', async ({ page }) => {
@@ -144,5 +145,76 @@ test.describe("RF-09 parola d'ordine", () => {
     await remember.uncheck();
     await page.reload();
     await expect(field).toHaveValue('');
+  });
+});
+
+test.describe('RF-21 il pulsante Traduci spiega cosa manca', () => {
+  test('indica i passi mancanti finché non sono completati', async ({ page }) => {
+    await mockApi(page);
+    await page.goto('/');
+    const button = page.getByRole('button', { name: 'Traduci' });
+    await expect(button).toHaveAccessibleDescription('Per tradurre: accedere al servizio e caricare un documento.');
+    await login(page);
+    await expect(button).toHaveAccessibleDescription('Per tradurre: caricare un documento con testo.');
+    await page.locator('#file').setInputFiles(`${FIXTURES}/guida.md`);
+    await expect(button).toBeEnabled();
+    await expect(page.locator('#translate-hint')).toBeHidden();
+    await expect(page.getByRole('button', { name: /Trascinare qui un file/ })).toBeVisible();
+  });
+
+  test("senza accesso chiede solo l'accesso", async ({ page }) => {
+    await mockApi(page);
+    await page.goto('/');
+    await page.locator('#file').setInputFiles(`${FIXTURES}/guida.md`);
+    await expect(page.locator('#translate-hint')).toHaveText('Per tradurre: accedere al servizio.');
+  });
+});
+
+test.describe('RF-11 durante la traduzione', () => {
+  test('documento e opzioni non si possono cambiare finché la traduzione è in corso', async ({ page }) => {
+    await prepare(page, 'guida.md');
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    await page.route(`${API_URL}/api/traduci`, async (route) => {
+      await held;
+      await route.fallback();
+    });
+    await page.getByRole('button', { name: 'Traduci' }).click();
+    await expect(page.locator('#drop')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.locator('#file')).toBeDisabled();
+    for (const id of ['#source', '#target', '#out-format']) await expect(page.locator(id)).toBeDisabled();
+    release();
+    await expect(page.getByRole('link', { name: /^Scarica / })).toBeVisible();
+    await expect(page.locator('#drop')).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(page.locator('#target')).toBeEnabled();
+  });
+});
+
+test.describe('RF-20 segmenti non tradotti', () => {
+  test('al termine avvisa quanti segmenti sono rimasti nella lingua originale', async ({ page }) => {
+    await prepare(page, 'guida.md');
+    await page.route(`${API_URL}/api/traduci`, (route) =>
+      route.fulfill({
+        status: 200,
+        headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' },
+        body: JSON.stringify({ translations: [] }),
+      }),
+    );
+    await page.getByRole('button', { name: 'Traduci' }).click();
+    await expect(page.locator('#status')).toHaveText(
+      /^Segmenti rimasti nella lingua originale: \d+\. Riprovare più tardi o verificarli nel file\.$/,
+    );
+    await expect(page.locator('#status')).toHaveClass('warn');
+    await expect(page.getByRole('link', { name: /^Scarica / })).toBeVisible();
+  });
+});
+
+test.describe('RF-09 preferenze memorizzate', () => {
+  test('preferenze danneggiate nel browser non bloccano la pagina', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('traduttore.prefs', '{non valido'));
+    await mockApi(page);
+    await page.goto('/');
+    await expect(page.locator('#target')).toHaveValue('it');
+    await expect(page.getByRole('button', { name: 'Traduci' })).toBeVisible();
   });
 });

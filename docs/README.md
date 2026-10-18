@@ -20,3 +20,4 @@ Il Traduttore è un'applicazione web statica che traduce documenti mantenendo il
 | [qualita.md](qualita.md)                           | Controlli di qualità, limiti numerici e dove girano                                |
 | [convenzioni-git.md](convenzioni-git.md)           | Rami, commit Angular, hook locali, merge e protezione di main                      |
 | [mappa-del-codice.md](mappa-del-codice.md)         | Cartelle del codice e documento che le descrive                                    |
+| [revisione-2026-10.md](revisione-2026-10.md)       | Revisione di interfaccia e codice di ottobre 2026: rilievi ed esiti                |

@@ -4,5 +4,9 @@
   "run.progress": "{done} / {total} segmenti",
   "run.inProgress": "Traduzione in {lang} in corso…",
   "run.done": "Traduzione completata.",
-  "run.download": "Scarica {file}"
+  "run.download": "Scarica {file}",
+  "run.needBoth": "Per tradurre: accedere al servizio e caricare un documento.",
+  "run.needLogin": "Per tradurre: accedere al servizio.",
+  "run.needFile": "Per tradurre: caricare un documento con testo.",
+  "run.untranslated": "Segmenti rimasti nella lingua originale: {count}. Riprovare più tardi o verificarli nel file."
 }
