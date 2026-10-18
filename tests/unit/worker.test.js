@@ -257,14 +257,14 @@ describe('RF-22 motore Claude', () => {
 
   it('usa Claude in mancanza di DeepL e il modello configurato', async () => {
     const fetchImpl = vi.fn(async () => claudeMessage(JSON.stringify({ translations: ['a', 'b'] })));
-    const env = { ...CLAUDE_ENV, CLAUDE_MODEL: 'claude-sonnet-5-5' };
+    const env = { ...CLAUDE_ENV, CLAUDE_MODEL: 'claude-opus-5-5' };
     const res = await handle(
       request('/api/traduci', { method: 'POST', body: { texts: ['x', 'y'], target: 'IT' } }),
       env,
       fetchImpl,
     );
     expect(await res.json()).toEqual({ translations: [{ text: 'a' }, { text: 'b' }] });
-    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).model).toBe('claude-sonnet-5-5');
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).model).toBe('claude-opus-5-5');
   });
 
   it('lascia vuoto tutto il lotto se le traduzioni non si possono abbinare ai segmenti', async () => {

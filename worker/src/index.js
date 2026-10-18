@@ -5,7 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 export const LIMITS = { maxTexts: 50, maxBodyBytes: 120_000 };
-export const CLAUDE_MODEL = 'claude-opus-5-5';
+export const CLAUDE_MODEL = 'claude-sonnet-5-5';
 const ENGINES = ['deepl', 'claude'];
 
 const TARGET_ONLY = { 'EN-GB': 'EN', 'EN-US': 'EN', 'PT-PT': 'PT', 'PT-BR': 'PT', 'ZH-HANS': 'ZH', 'ZH-HANT': 'ZH' };
