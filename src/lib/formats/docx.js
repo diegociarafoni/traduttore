@@ -171,18 +171,27 @@ export async function renderDocx(doc) {
 // I run consecutivi con la stessa formattazione vengono fusi; quelli con formattazione diversa
 // diventano tag numerati, così grassetti e corsivi restano sulle parole giuste.
 
+const BREAKS = { tab: '\t', br: '\n', cr: '\n' };
+const isText = (c) => c.namespaceURI === W && (c.localName === 't' || c.localName in BREAKS);
+
+// Solo i run del paragrafo con testo proprio: i run che contengono caselle di testo
+// (w:drawing, w:pict) hanno paragrafi interni, trattati come unità a sé.
 function ownRuns(p) {
   const out = [];
   for (const r of p.getElementsByTagNameNS(W, 'r')) {
     let a = r.parentNode;
     while (a && !(a.namespaceURI === W && a.localName === 'p')) a = a.parentNode;
-    if (a === p && r.getElementsByTagNameNS(W, 't').length) out.push(r);
+    if (a === p && [...r.childNodes].some((c) => c.namespaceURI === W && c.localName === 't')) out.push(r);
   }
   return out;
 }
 
+// Tabulazioni e a capo dentro il run diventano \t e \n, così le parole ai lati restano separate.
 function runText(r) {
-  return [...r.getElementsByTagNameNS(W, 't')].map((t) => t.textContent).join('');
+  return [...r.childNodes]
+    .filter(isText)
+    .map((c) => (c.localName === 't' ? c.textContent : BREAKS[c.localName]))
+    .join('');
 }
 
 function runFormat(r) {
@@ -190,16 +199,25 @@ function runFormat(r) {
   return rPr ? new XMLSerializer().serializeToString(rPr) : '';
 }
 
+// Riscrive il testo del run ricreando w:t, w:tab e w:br; gli a capo riusano gli elementi originali
+// (che possono essere interruzioni di pagina o di colonna) finché ce ne sono.
 function setRunText(r, text) {
-  const ts = [...r.getElementsByTagNameNS(W, 't')];
-  ts.forEach((t, i) => {
-    if (i === 0) {
-      t.textContent = text;
-      t.setAttribute('xml:space', 'preserve');
-    } else {
-      t.parentNode.removeChild(t);
+  const old = [...r.childNodes].filter(isText);
+  const doc = r.ownerDocument;
+  const breaks = old.filter((c) => c.localName !== 't' && c.localName !== 'tab');
+  const anchor = old[0];
+  for (const part of text.split(/([\t\n])/)) {
+    let node;
+    if (part === '\t') node = doc.createElementNS(W, 'w:tab');
+    else if (part === '\n') node = breaks.length ? breaks.shift().cloneNode(true) : doc.createElementNS(W, 'w:br');
+    else if (part) {
+      node = doc.createElementNS(W, 'w:t');
+      node.setAttribute('xml:space', 'preserve');
+      node.textContent = part;
     }
-  });
+    if (node) r.insertBefore(node, anchor);
+  }
+  old.forEach((c) => r.removeChild(c));
 }
 
 function paragraphUnits(xmlDoc) {

@@ -35,7 +35,7 @@ Documento unico dei requisiti. I codici (RF funzionali, RNF non funzionali) comp
 | ------ | ------------------------------------------------------------------------------------------ | -------- | ------- | --------------------------------------------------------------------- |
 | RNF-01 | Il file non lascia il dispositivo: all'esterno va solo il testo, verso DeepL tramite proxy | P0       | fatta   | Content Security Policy in `index.html`, [sicurezza.md](sicurezza.md) |
 | RNF-02 | Accessibilità WCAG 2.1 AA in tema chiaro e scuro, uso da tastiera, schermo del telefono    | P0       | fatta   | `tests/e2e/aspetto.spec.js`                                           |
-| RNF-03 | Testi dell'interfaccia nel catalogo `src/i18n/it.json`                                     | P1       | fatta   | `tool/check-i18n.mjs`, `tests/unit/api.test.js`                       |
+| RNF-03 | Testi dell'interfaccia nel catalogo `src/i18n/it/`, diviso per funzione                    | P1       | fatta   | `tool/check-i18n.mjs`, `tests/unit/api.test.js`                       |
 | RNF-04 | Sito statico pubblicato su GitHub Pages                                                    | P0       | fatta   | `.github/workflows/pages.yml`                                         |
 | RNF-05 | Convenzioni di rami, commit e commenti verificate in automatico                            | P1       | fatta   | `tests/unit/tool/conventions.test.js`                                 |
 | RNF-06 | Solo dipendenze con licenza compatibile                                                    | P1       | fatta   | `tool/check-licenses.mjs`                                             |

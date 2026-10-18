@@ -10,8 +10,8 @@ Le lingue disponibili sono quelle supportate da DeepL (`src/lib/languages.js`); 
 
 1. Ogni testo traducibile del documento è un **segmento**: un paragrafo, un titolo, una voce di elenco, una cella.
 2. I segmenti senza lettere (numeri, simboli) non si inviano; quelli identici si traducono una volta sola (RF-13).
-3. I segmenti si raggruppano in **lotti** di al massimo 50 segmenti o 30 000 caratteri, inviati con due richieste in parallelo. I limiti stanno sotto quelli del proxy (50 testi, 120 kB per richiesta).
-4. Le risposte 429 e 5xx si ripetono fino a tre volte con attesa crescente (1, 2, 4 secondi), tranne la quota esaurita, che si segnala subito.
+3. I segmenti si raggruppano in **lotti** di al massimo 50 segmenti o 25 000 caratteri, inviati con due richieste in parallelo; al primo errore non si inviano altri lotti. I limiti stanno sotto quelli del proxy (50 testi, 120 kB per richiesta). Un segmento oltre 20 000 caratteri (per esempio un testo senza righe vuote) si divide a fine riga, a fine frase o a uno spazio (`splitLong`), si traduce a pezzi senza formattazione e si ricompone.
+4. Le risposte 429 e 5xx si ripetono fino a tre volte con attesa crescente (1, 2, 4 secondi), tranne gli errori che un nuovo tentativo non risolve (quota esaurita, configurazione, parola d'ordine, richiesta non valida), che si segnalano subito.
 
 ## Tag della formattazione
 

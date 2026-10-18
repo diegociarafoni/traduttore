@@ -3,7 +3,8 @@ import { hasClaudeAttribution, isClaudeIdentity, validateCommitMessage } from '.
 import { pushedBranches, validateBranchName } from '../../../tool/lib/branch-name.mjs';
 import { checkComments } from '../../../tool/lib/comments.mjs';
 import { checkLicenses, spdxAlternatives } from '../../../tool/lib/licenses.mjs';
-import { checkI18n } from '../../../tool/lib/i18n.mjs';
+import { checkCatalogParts, checkI18n, hardcodedTexts } from '../../../tool/lib/i18n.mjs';
+import { checkTestNames } from '../../../tool/lib/test-names.mjs';
 
 describe('RNF-05 messaggi di commit secondo la convenzione Angular', () => {
   it('accetta messaggi validi', () => {
@@ -109,6 +110,49 @@ describe('RNF-03 catalogo dei testi', () => {
     expect(checkI18n(sources, catalog)).toEqual([
       'a.js: chiave "a.due" assente dal catalogo',
       'catalogo: chiave "a.zero" non usata',
+    ]);
+  });
+});
+
+describe('RNF-03 catalogo diviso per funzione e testi nel codice', () => {
+  it('accetta in ogni file solo le chiavi della sua area, senza doppioni', () => {
+    const areas = { app: ['app.'], errori: ['error.'] };
+    const parts = {
+      'it/app.json': { 'app.title': 'T', 'error.x': 'E' },
+      'it/errori.json': { 'error.x': 'E' },
+      'it/altro.json': {},
+    };
+    expect(checkCatalogParts(parts, areas)).toEqual([
+      'it/app.json: chiave "error.x" fuori dall\'area app',
+      'it/errori.json: chiave "error.x" già in it/app.json',
+      'it/altro.json: area "altro" non prevista in tool/policy.json',
+    ]);
+  });
+
+  it('trova le frasi scritte nel codice, ignorando chiavi, percorsi, markup e commenti', () => {
+    const sources = {
+      'a.js': [
+        '// Commento con più parole',
+        "t('error.quota'); fetch('https://x.it/a b');",
+        'const html = `<p>${x} testo</p>`;',
+        "throw new Error('Formato non supportato');",
+        'const m = `Scarica ${file} adesso`;',
+      ].join('\n'),
+    };
+    expect(hardcodedTexts(sources)).toEqual(["a.js: 'Formato non supportato'", 'a.js: `Scarica ${file} adesso`']);
+  });
+});
+
+describe('RNF-05 nomi dei test con codice di requisito', () => {
+  const code = '\\bRN?F-\\d{2,}\\b';
+  it('richiede il codice nel gruppo, o nel test se non ci sono gruppi', () => {
+    const sources = {
+      'a.test.js': "describe('RF-01 caricamento', () => { it('va', () => {}); });\ndescribe('senza codice', () => {});",
+      'b.test.js': "it('RNF-02 accessibile', () => {});\nit('anonimo', () => {});",
+    };
+    expect(checkTestNames(sources, code)).toEqual([
+      'a.test.js: gruppo "senza codice" senza codice di requisito',
+      'b.test.js: test "anonimo" senza codice di requisito',
     ]);
   });
 });

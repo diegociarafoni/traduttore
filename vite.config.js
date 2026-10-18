@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { defineConfig, loadEnv } from 'vite';
 
 const policy = JSON.parse(readFileSync('./tool/policy.json', 'utf8'));
-const min = policy.coverage.logicMinPercent;
+const { logicMinPercent: min, branchesMinPercent } = policy.coverage;
 
 // L'origine del proxy di traduzione entra nella Content-Security-Policy della pagina.
 function apiOrigin(mode) {
@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => ({
       // Solo la logica: l'interfaccia (src/main.js) è coperta dai test end-to-end.
       include: ['src/lib/**', 'src/i18n/**', 'worker/src/**'],
       reporter: ['text-summary', 'lcov'],
-      thresholds: { lines: min, statements: min, functions: min, branches: min - 10 },
+      thresholds: { lines: min, statements: min, functions: min, branches: branchesMinPercent },
     },
   },
 }));

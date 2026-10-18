@@ -59,10 +59,16 @@ describe('RF-09 RF-05 chiamata al proxy di traduzione', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it('RF-12 non ritenta quando la quota DeepL è esaurita', async () => {
-    const fetch = vi.fn(async () => json({ error: 'quota' }, 429));
-    await expect(client(fetch).usage()).rejects.toMatchObject({ code: 'quota' });
-    expect(fetch).toHaveBeenCalledTimes(1);
+  it('RF-12 non ritenta gli errori che un nuovo tentativo non risolve', async () => {
+    for (const [status, error] of [
+      [429, 'quota'],
+      [502, 'configurazione'],
+      [500, 'configurazione'],
+    ]) {
+      const fetch = vi.fn(async () => json({ error }, status));
+      await expect(client(fetch).usage()).rejects.toMatchObject({ code: error });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
   });
 
   it("RF-12 distingue parola d'ordine errata, rete assente e risposta illeggibile", async () => {

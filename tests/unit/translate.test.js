@@ -4,6 +4,7 @@ import {
   fromDeeplXml,
   makeBatches,
   needsTranslation,
+  splitLong,
   toDeeplXml,
   translateSegments,
 } from '../../src/lib/translate.js';
@@ -65,6 +66,36 @@ describe('RF-05 translateSegments', () => {
   it('dopo gli ultimi tentativi accetta la traduzione anche senza tag', async () => {
     const batch = async (texts) => texts.map((t) => t.replace(/<\/?1>/g, ''));
     expect(await translateSegments(['a <1>b</1>', 'c <1>d</1>'], batch)).toEqual(['a b', 'c d']);
+  });
+
+  it('divide i testi troppo lunghi a fine riga, a fine frase o a uno spazio', () => {
+    expect(splitLong('aaaa\nbbbb\ncc', 10)).toEqual(['aaaa\nbbbb\n', 'cc']);
+    expect(splitLong('Uno due. Tre quattro cinque', 12)).toEqual(['Uno due. ', 'Tre quattro ', 'cinque']);
+    expect(splitLong('abcdefghij', 4)).toEqual(['abcd', 'efgh', 'ij']);
+    expect(splitLong('abcdefg&amp;h', 9)).toEqual(['abcdefg', '&amp;h']);
+  });
+
+  it('traduce a pezzi un segmento oltre il limite di una richiesta e lo ricompone', async () => {
+    const long = `${'Parola '.repeat(4000)}fine.\n${'Altra '.repeat(3000)}`;
+    const sizes = [];
+    const batch = async (texts) => {
+      sizes.push(...texts.map((x) => x.length));
+      return texts.map((x) => x.trimEnd().toUpperCase());
+    };
+    const [out] = await translateSegments([long], batch);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(20000);
+    expect(out).toBe(long.toUpperCase());
+  });
+
+  it('al primo errore smette di inviare altri lotti', async () => {
+    const segments = Array.from({ length: 200 }, (_, i) => `testo ${i} ${'x'.repeat(i)}`);
+    let calls = 0;
+    const batch = async () => {
+      calls++;
+      throw new Error('quota');
+    };
+    await expect(translateSegments(segments, batch, { concurrency: 2 })).rejects.toThrow('quota');
+    expect(calls).toBe(2);
   });
 
   it("RF-11 riporta l'avanzamento", async () => {

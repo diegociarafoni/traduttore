@@ -27,10 +27,26 @@
     }
   },
   "coverage": {
-    "logicMinPercent": 80
+    "logicMinPercent": 80,
+    "branchesMinPercent": 80
   },
   "budget": {
     "mainChunkMaxKilobytes": 1500,
     "distMaxMegabytes": 12
+  },
+  "i18n": {
+    "maxHardcodedTexts": 0,
+    "areas": {
+      "app": ["app."],
+      "accesso": ["key.", "access."],
+      "documento": ["file.", "info.", "doc."],
+      "opzioni": ["opt.", "note.", "format."],
+      "traduzione": ["run."],
+      "errori": ["error."],
+      "lingue": ["lang."]
+    }
+  },
+  "tests": {
+    "requirementCode": "\\bRN?F-\\d{2,}\\b"
   }
 }

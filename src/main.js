@@ -116,17 +116,22 @@ async function login() {
   $('access').className = '';
   $('access').textContent = t('access.checking');
   try {
-    state.usage = await client.usage();
+    const usage = await client.usage();
+    // Se nel frattempo il campo è cambiato, l'esito riguarda una parola d'ordine non più valida.
+    if ($('password').value !== password) return;
+    state.usage = usage;
     state.client = client;
     $('access').className = 'ok';
     $('access').textContent = t('access.ok');
     store.set(PASSWORD_STORAGE, $('remember').checked ? password : null);
   } catch (err) {
+    if ($('password').value !== password) return;
     state.client = null;
     state.usage = null;
     $('access').className = 'error';
     $('access').textContent = describeError(err);
-    store.set(PASSWORD_STORAGE, null);
+    // Si dimentica la parola d'ordine solo se è errata, non per un problema di rete o del servizio.
+    if (err?.code === 'parola_d_ordine') store.set(PASSWORD_STORAGE, null);
   }
   showInfo();
   updateButton();

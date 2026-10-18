@@ -5,7 +5,17 @@ const BULLET = /^\s*([-*•–·]|\d+[.)])\s+/;
 
 export function parseText(text, name = t('doc.untitled')) {
   const blocks = [];
-  const paragraphs = text.replace(/\r\n?/g, '\n').split(/\n\s*\n/);
+  const normalized = text.replace(/\r\n?/g, '\n');
+  let paragraphs = normalized.split(/\n\s*\n/);
+  // Senza righe vuote ogni riga è un paragrafo, tranne le voci di elenco consecutive.
+  if (paragraphs.length === 1) {
+    paragraphs = [];
+    for (const line of normalized.split('\n')) {
+      const last = paragraphs.length - 1;
+      if (last >= 0 && BULLET.test(line) && BULLET.test(paragraphs[last])) paragraphs[last] += `\n${line}`;
+      else paragraphs.push(line);
+    }
+  }
   for (const para of paragraphs) {
     const lines = para.split('\n').filter((l) => l.trim());
     if (!lines.length) continue;

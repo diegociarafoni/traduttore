@@ -21,3 +21,44 @@ export function checkI18n(sources, catalog, { dynamicPrefixes = ['lang.'] } = {}
   }
   return problems;
 }
+
+// Ogni file del catalogo contiene solo le chiavi della propria area: <area>.json -> prefissi ammessi.
+export function checkCatalogParts(parts, areas) {
+  const problems = [];
+  const seen = new Map();
+  for (const [file, keys] of Object.entries(parts)) {
+    const area = file.replace(/^.*\//, '').replace(/\.json$/, '');
+    const prefixes = areas[area];
+    if (!prefixes) {
+      problems.push(`${file}: area "${area}" non prevista in tool/policy.json`);
+      continue;
+    }
+    for (const key of Object.keys(keys)) {
+      if (!prefixes.some((p) => key.startsWith(p))) problems.push(`${file}: chiave "${key}" fuori dall'area ${area}`);
+      if (seen.has(key)) problems.push(`${file}: chiave "${key}" già in ${seen.get(key)}`);
+      seen.set(key, file);
+    }
+  }
+  return problems;
+}
+
+const LITERAL = /(['"`])((?:\\.|(?!\1)[^\\\n])*)\1/g;
+const PROSE = /\p{L}{2,}[,.:;!?']?\s+\p{L}{2,}/u;
+
+function stripComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
+
+// Frasi scritte nel codice invece che nel catalogo: stringhe con almeno due parole.
+// Interpolazioni ${…}, espressioni regolari e indirizzi non contano.
+export function hardcodedTexts(sources) {
+  const found = [];
+  for (const [path, text] of Object.entries(sources)) {
+    for (const m of stripComments(text).matchAll(LITERAL)) {
+      const value = m[2].replace(/\$\{[^}]*\}/g, ' ');
+      if (/^https?:|^[./<]|<[a-z]/i.test(value)) continue;
+      if (PROSE.test(value)) found.push(`${path}: ${m[0].slice(0, 60)}`);
+    }
+  }
+  return found;
+}

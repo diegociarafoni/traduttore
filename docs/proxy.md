@@ -19,6 +19,7 @@ Il sito è statico e non può custodire segreti: tutto ciò che contiene è legg
 
 ## Limiti ed errori
 
+- Al massimo 100 richieste al minuto per indirizzo IP, contate prima del controllo della parola d'ordine così da rallentare anche i tentativi di indovinarla (`LIMITATORE`, limite di frequenza di Cloudflare configurato in `worker/wrangler.toml`); oltre, `429 troppe_richieste`.
 - Al massimo 50 testi e 120 kB per richiesta (`LIMITS` in `worker/src/index.js`); oltre, `413 troppo_grande`. Codici di lingua e forma del corpo sono validati prima dell'inoltro (`400 richiesta_non_valida`).
 - Errori di DeepL: 403 (chiave non valida) diventa `502 configurazione`, 456 (quota esaurita) `429 quota`, 429 `429 troppe_richieste`, gli altri `502 servizio`. Segreti mancanti: `500 configurazione`.
 

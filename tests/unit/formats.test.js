@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 import { parseMarkdown, renderMarkdown } from '../../src/lib/formats/markdown.js';
 import { parseText, renderText } from '../../src/lib/formats/text.js';
@@ -60,6 +61,13 @@ describe('RF-05 Markdown', () => {
     expect(out).toContain('```js\nconst Hello = 1;\n```');
   });
 
+  it('trasforma i link per riferimento in link in linea', () => {
+    const doc = parseMarkdown('See [docs][r] and [X][] ok.\n\n[r]: https://x.com\n[x]: https://y.it\n');
+    expect(doc.chapters[0].blocks).toEqual([
+      { type: 'paragraph', text: 'See [docs](https://x.com) and [X](https://y.it) ok.' },
+    ]);
+  });
+
   it('RF-13 non traduce i blocchi di codice', () => {
     const segs = collectSegments(parseMarkdown(MD));
     expect(segs.some((s) => s.includes('const'))).toBe(false);
@@ -74,6 +82,16 @@ describe('RF-05 testo semplice', () => {
       { type: 'list', ordered: false, items: ['a', 'b'], plain: true },
     ]);
     expect(await renderText(doc).text()).toBe('Riga uno continua.\n\n- a\n- b\n');
+  });
+
+  it('senza righe vuote tratta ogni riga come paragrafo, tenendo uniti gli elenchi', () => {
+    const doc = parseText('Prima riga\nSeconda riga\n- a\n- b\nUltima');
+    expect(doc.chapters[0].blocks.map((b) => b.text || b.items)).toEqual([
+      'Prima riga',
+      'Seconda riga',
+      ['a', 'b'],
+      'Ultima',
+    ]);
   });
 });
 
@@ -120,6 +138,52 @@ describe('RF-06 RF-08 Word', () => {
   });
 });
 
+const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+async function rawDocx(body) {
+  const zip = new JSZip();
+  zip.file(
+    '[Content_Types].xml',
+    '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+  );
+  zip.file(
+    'word/document.xml',
+    `<?xml version="1.0"?><w:document xmlns:w="${W_NS}"><w:body>${body}</w:body></w:document>`,
+  );
+  return zip.generateAsync({ type: 'arraybuffer' });
+}
+
+describe('RF-06 Word sul posto: casi particolari', () => {
+  it('conserva a capo, interruzioni di pagina e tabulazioni dentro un run', async () => {
+    const buffer = await rawDocx(
+      '<w:p><w:r><w:t>Hello</w:t><w:br/><w:t>world</w:t><w:br w:type="page"/><w:t>Name</w:t><w:tab/><w:t>Value</w:t></w:r></w:p>',
+    );
+    const seen = [];
+    const out = await translateDocxInPlace(buffer, async (segs) => {
+      seen.push(...segs);
+      return segs.map(fakeTranslate);
+    });
+    expect(seen).toEqual(['Hello\nworld\nName\tValue']);
+    const xml = await (await blobToZip(out)).file('word/document.xml').async('string');
+    expect(xml).toMatch(
+      /<w:t[^>]*>Ciao<\/w:t><w:br\/><w:t[^>]*>mondo<\/w:t><w:br w:type="page"\/><w:t[^>]*>Nome<\/w:t><w:tab\/><w:t[^>]*>Valore<\/w:t>/,
+    );
+  });
+
+  it('traduce separatamente il testo di una casella di testo', async () => {
+    const buffer = await rawDocx(
+      '<w:p><w:r><w:t>Hello</w:t></w:r><w:r><w:drawing><w:txbxContent><w:p><w:r><w:t>world</w:t></w:r></w:p></w:txbxContent></w:drawing></w:r></w:p>',
+    );
+    const seen = [];
+    const out = await translateDocxInPlace(buffer, async (segs) => {
+      seen.push(...segs);
+      return segs.map(fakeTranslate);
+    });
+    expect(seen.sort()).toEqual(['Hello', 'world']);
+    const xml = await (await blobToZip(out)).file('word/document.xml').async('string');
+    expect(xml).toMatch(/Ciao<\/w:t><\/w:r><w:r><w:drawing><w:txbxContent><w:p><w:r><w:t[^>]*>mondo</);
+  });
+});
+
 describe('RF-06 RF-08 EPUB', () => {
   it('genera un EPUB valido e lo rilegge', async () => {
     const blob = await renderEpub(sample(), { lang: 'it' });
@@ -144,6 +208,33 @@ describe('RF-06 RF-08 EPUB', () => {
     expect(opf).toContain('<dc:language>it</dc:language>');
     const ncx = await zip.file('OEBPS/toc.ncx').async('string');
     expect(ncx).toContain('Capitolo one');
+  });
+
+  const withChapter = async (body) => {
+    const zip = await blobToZip(await renderEpub(sample(), { lang: 'en' }));
+    zip.file(
+      'OEBPS/chapter-001.xhtml',
+      `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>t</title></head><body>${body}</body></html>`,
+    );
+    return zip.generateAsync({ type: 'arraybuffer' });
+  };
+  const chapterOut = async (out) => (await blobToZip(out)).file('OEBPS/chapter-001.xhtml').async('string');
+
+  it('traduce anche il testo diretto dei blocchi che contengono altri blocchi', async () => {
+    const buffer = await withChapter(
+      '<ol><li><a href="#c1">Chapter</a> Introduction<ol><li>First item</li></ol></li></ol>',
+    );
+    const ch = await chapterOut(await translateEpubInPlace(buffer, fakeTranslateAll));
+    expect(ch).toContain('<li><a href="#c1">Capitolo</a> Introduzione<ol><li>Primo elemento</li></ol></li>');
+  });
+
+  it('se i tag si perdono conserva immagini e codice in linea', async () => {
+    const buffer = await withChapter('<p>Hello <img src="f.png" alt=""/> <a href="#n">world</a> <code>x</code></p>');
+    const out = await translateEpubInPlace(buffer, async (segs) =>
+      segs.map((s) => fakeTranslate(s.replace(/<\/?\d+\/?>/g, ''))),
+    );
+    const ch = await chapterOut(out);
+    expect(ch).toMatch(/<p>Ciao\s+mondo\s+<img src="f.png" alt="" ?\/> <code>x<\/code><\/p>/);
   });
 });
 

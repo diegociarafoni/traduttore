@@ -2,9 +2,12 @@ import { collectIds, parseTagged, sameIds } from './tagged.js';
 import { t } from '../i18n/index.js';
 
 // Limiti del proxy (worker/src/index.js): 50 testi e 120 kB per richiesta.
-const MAX_BATCH_CHARS = 30000;
+const MAX_BATCH_CHARS = 25000;
 const MAX_BATCH_SEGMENTS = 50;
+const MAX_SEGMENT_CHARS = 20000;
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
+// Errori che un nuovo tentativo non può risolvere.
+const FINAL_ERRORS = new Set(['quota', 'configurazione', 'parola_d_ordine', 'troppo_grande', 'richiesta_non_valida']);
 
 export class ServiceError extends Error {
   constructor(code, status) {
@@ -61,9 +64,51 @@ export function countCharacters(segments) {
     .reduce((n, s) => n + s.replace(/<\/?\d+\/?>/g, '').replace(/&(amp|lt|gt);/g, '&').length, 0);
 }
 
+// Divide un testo troppo lungo per una richiesta: preferibilmente a fine riga, poi a fine frase,
+// poi a uno spazio; ogni parte tiene il proprio separatore finale. Non spezza le entità (&amp;).
+export function splitLong(text, max = MAX_SEGMENT_CHARS) {
+  const parts = [];
+  let rest = text;
+  while (rest.length > max) {
+    const head = rest.slice(0, max);
+    let cut = head.lastIndexOf('\n') + 1;
+    if (cut < max / 2) {
+      const m = [...head.matchAll(/[.!?。！？]\s+/g)].pop();
+      cut = m && m.index > max / 2 ? m.index + m[0].length : 0;
+    }
+    if (cut < max / 2) cut = head.lastIndexOf(' ') + 1;
+    if (cut < max / 2) {
+      const amp = head.lastIndexOf('&');
+      cut = amp > 0 && amp > max - 6 ? amp : max;
+    }
+    parts.push(rest.slice(0, cut));
+    rest = rest.slice(cut);
+  }
+  parts.push(rest);
+  return parts;
+}
+
 // Traduce un elenco di segmenti con una funzione `translateBatch(segments) => string[]`.
 // Gestisce deduplicazione, lotti, parallelismo, controllo dei tag e ritentativi.
-export async function translateSegments(segments, translateBatch, { concurrency = 2, onProgress, signal } = {}) {
+// I segmenti più lunghi di MAX_SEGMENT_CHARS si traducono a pezzi (senza tag) e si ricompongono.
+export async function translateSegments(segments, translateBatch, options = {}) {
+  const pieces = segments.map((s) =>
+    s.length > MAX_SEGMENT_CHARS && needsTranslation(s) ? splitLong(s.replace(/<\/?\d+\/?>/g, '')) : [s],
+  );
+  const flat = await translateUnits(pieces.flat(), translateBatch, options);
+  let k = 0;
+  return pieces.map((parts) =>
+    parts
+      .map((part) => {
+        const out = flat[k++];
+        const trailing = part.match(/\s*$/)[0];
+        return parts.length > 1 && !/\s$/.test(out) ? out + trailing : out;
+      })
+      .join(''),
+  );
+}
+
+async function translateUnits(segments, translateBatch, { concurrency = 2, onProgress, signal } = {}) {
   const result = segments.slice();
   const unique = new Map();
   segments.forEach((s, i) => {
@@ -76,8 +121,10 @@ export async function translateSegments(segments, translateBatch, { concurrency 
   let done = 0;
   onProgress?.(0, total);
 
+  let failed = false;
   const runBatch = async (batch, depth = 0) => {
     if (signal?.aborted) throw new DOMException(t('error.aborted'), 'AbortError');
+    if (failed) return;
     const translated = await translateBatch(batch.map((b) => b.text));
     const missing = [];
     batch.forEach((item, i) => {
@@ -106,8 +153,14 @@ export async function translateSegments(segments, translateBatch, { concurrency 
   };
 
   const queue = makeBatches(items);
+  // Al primo errore gli altri lavoratori smettono di prendere lotti, per non consumare quota inutilmente.
   const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-    while (queue.length) await runBatch(queue.shift());
+    try {
+      while (queue.length && !failed) await runBatch(queue.shift());
+    } catch (err) {
+      failed = true;
+      throw err;
+    }
   });
   await Promise.all(workers);
   onProgress?.(total, total);
@@ -138,8 +191,7 @@ export function createClient({ apiUrl, password, fetch = globalThis.fetch, sleep
       }
       if (res.ok) return res.json();
       const body = await res.json().catch(() => ({}));
-      // La quota esaurita non si libera ritentando: si interrompe subito.
-      if (RETRY_STATUS.has(res.status) && body.error !== 'quota' && attempt < retries) {
+      if (RETRY_STATUS.has(res.status) && !FINAL_ERRORS.has(body.error) && attempt < retries) {
         await sleep(1000 * 2 ** attempt);
         continue;
       }

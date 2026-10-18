@@ -38,5 +38,7 @@ pre-push:
       run: node tool/check-docs.mjs
     - name: commenti
       run: node tool/check-comments.mjs
+    - name: nomi dei test
+      run: node tool/check-test-names.mjs
     - name: test dei file modificati
       run: tool/test-veloci.sh

@@ -1,4 +1,6 @@
-import it from './it.json';
+// Catalogo diviso per funzione: un file JSON per area in src/i18n/<lingua>/, fusi all'avvio.
+const parts = import.meta.glob('./it/*.json', { eager: true, import: 'default' });
+const it = Object.assign({}, ...Object.values(parts));
 
 const catalogs = { it };
 let current = 'it';

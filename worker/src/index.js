@@ -1,5 +1,6 @@
 // Proxy tra il sito statico e DeepL: custodisce la chiave DeepL, controlla la parola d'ordine
-// e limita le richieste. Variabili: DEEPL_KEY e PASSWORD (segreti), ALLOWED_ORIGINS (elenco separato da virgole).
+// e limita le richieste. Variabili: DEEPL_KEY e PASSWORD (segreti), ALLOWED_ORIGINS (elenco separato da virgole),
+// LIMITATORE (limite di frequenza per indirizzo IP, configurato in wrangler.toml).
 
 export const LIMITS = { maxTexts: 50, maxBodyBytes: 120_000 };
 
@@ -112,6 +113,12 @@ export async function handle(request, env, fetchImpl = fetch) {
   const route = `${request.method} ${pathname}`;
   if (route !== 'POST /api/traduci' && route !== 'GET /api/utilizzo') {
     return withCors(json({ error: 'non_trovato' }, 404));
+  }
+  // Il limite vale per ogni richiesta, così rallenta anche i tentativi di indovinare la parola d'ordine.
+  if (env.LIMITATORE) {
+    const ip = request.headers.get('cf-connecting-ip') || 'sconosciuto';
+    const { success } = await env.LIMITATORE.limit({ key: ip });
+    if (!success) return withCors(json({ error: 'troppe_richieste' }, 429));
   }
   if (!samePassword(request.headers.get('x-password'), env.PASSWORD)) {
     return withCors(json({ error: 'parola_d_ordine' }, 401));

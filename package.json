@@ -14,7 +14,7 @@
     "lint": "eslint --max-warnings 0 .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:conventions": "node tool/check-docs.mjs && node tool/check-comments.mjs && node tool/check-i18n.mjs && node tool/check-licenses.mjs",
+    "check:conventions": "node tool/check-docs.mjs && node tool/check-comments.mjs && node tool/check-i18n.mjs && node tool/check-test-names.mjs && node tool/check-licenses.mjs",
     "verifica": "tool/verifica.sh",
     "worker": "npx --yes wrangler@4.147.0 dev -c worker/wrangler.toml"
   },

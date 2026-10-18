@@ -1,0 +1,22 @@
+{
+  "file.section": "2. Documento",
+  "file.drop": "Trascinare qui un file oppure sceglierlo dal computer",
+  "file.formats": "Formati: md, docx, txt, epub, pdf (con testo selezionabile)",
+  "file.unsupported": "Formato non supportato. Usare un file .md, .docx, .txt, .epub o .pdf.",
+  "file.analyzing": "Analisi del documento in corso…",
+  "file.empty": "Il documento non contiene testo da tradurre.",
+  "info.file": "File",
+  "info.format": "Formato",
+  "info.detected": "Lingua rilevata",
+  "info.undetected": "non determinata: la rileverà DeepL",
+  "info.text": "Testo da tradurre",
+  "info.textValue": "{chars} caratteri",
+  "info.sameLanguage": "Il documento sembra già in {lang}: verificare la lingua di destinazione.",
+  "doc.untitled": "Documento",
+  "doc.image": "immagine",
+  "doc.chapter": "Capitolo {n}",
+  "doc.toc": "Indice",
+  "info.quota": "Quota DeepL disponibile",
+  "info.quotaValue": "{left} caratteri questo mese",
+  "info.overQuota": "Il documento supera la quota DeepL residua: la traduzione potrebbe interrompersi."
+}

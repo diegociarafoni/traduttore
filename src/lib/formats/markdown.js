@@ -46,8 +46,25 @@ function tokensToBlocks(tokens, blocks) {
   return blocks;
 }
 
+// I link per riferimento ([testo][rif] con la definizione [rif]: url altrove) diventano link in linea,
+// perché le definizioni non fanno parte del modello documento.
+function inlineReferences(blocks, links) {
+  const resolve = (whole, label, ref) => {
+    const def = links[(ref || label).trim().toLowerCase().replace(/\s+/g, ' ')];
+    return def ? `[${label}](${def.href})` : whole;
+  };
+  const fix = (text) => text.replace(/(?<!!)\[([^\]]+)\]\[([^\]]*)\]/g, resolve);
+  for (const b of blocks) {
+    if (b.text && b.type !== 'code') b.text = fix(b.text);
+    if (b.items) b.items = b.items.map(fix);
+    if (b.rows) b.rows = b.rows.map((r) => r.map(fix));
+  }
+  return blocks;
+}
+
 export function parseMarkdown(text, name = t('doc.untitled')) {
-  const blocks = tokensToBlocks(marked.lexer(text.replace(/\r\n?/g, '\n')), []);
+  const tokens = marked.lexer(text.replace(/\r\n?/g, '\n'));
+  const blocks = inlineReferences(tokensToBlocks(tokens, []), tokens.links || {});
   return { title: '', name, chapters: [{ title: '', blocks }] };
 }
 

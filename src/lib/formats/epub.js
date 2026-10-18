@@ -247,8 +247,12 @@ function isLeafBlock(el) {
 }
 
 function encode(el, map) {
+  return encodeNodes(el.childNodes, map);
+}
+
+function encodeNodes(nodes, map) {
   let out = '';
-  for (const node of el.childNodes) {
+  for (const node of nodes) {
     if (node.nodeType === 3) out += escapeText(node.nodeValue);
     else if (node.nodeType === 1) {
       const id = map.length + 1;
@@ -284,28 +288,62 @@ function collectUnits(doc) {
   if (title && title.textContent.trim()) units.push({ el: title, map: [], segment: escapeText(title.textContent) });
   const body = doc.getElementsByTagName('body')[0];
   if (!body) return units;
+  // In un blocco che contiene altri blocchi, il testo diretto e gli elementi in linea consecutivi
+  // (es. «Capitolo 1» in <li>Capitolo 1<ol>…</ol></li>) formano un'unità a sé.
   const walk = (el) => {
-    for (const c of el.children) {
-      if (SKIP.has(lname(c))) continue;
+    let inline = [];
+    const flush = () => {
+      if (inline.some((n) => n.textContent.trim())) {
+        const map = [];
+        units.push({ nodes: inline, map, segment: encodeNodes(inline, map) });
+      }
+      inline = [];
+    };
+    for (const c of [...el.childNodes]) {
+      const isBlock =
+        c.nodeType === 1 &&
+        (BLOCKS.has(lname(c)) || [...c.getElementsByTagName('*')].some((d) => BLOCKS.has(lname(d))));
+      if (c.nodeType === 3 || (c.nodeType === 1 && !isBlock && !SKIP.has(lname(c)))) {
+        inline.push(c);
+        continue;
+      }
+      flush();
+      if (c.nodeType !== 1 || SKIP.has(lname(c))) continue;
       if (isLeafBlock(c)) {
         const map = [];
         units.push({ el: c, map, segment: encode(c, map) });
       } else walk(c);
     }
+    flush();
   };
   walk(body);
   return units;
 }
 
 function applyUnit(unit, translated) {
-  const { el, map } = unit;
+  const { map } = unit;
   const tree = parseTagged(translated);
   const expected = map.map((_, i) => i + 1);
-  while (el.firstChild) el.removeChild(el.firstChild);
+  const owner = unit.el || unit.nodes[0].parentNode;
+  const target = owner.ownerDocument.createDocumentFragment();
   if (tree && sameIds(collectIds(tree), expected)) {
-    rebuild(el, tree, map, new Set());
+    rebuild(target, tree, map, new Set());
   } else {
-    el.appendChild(el.ownerDocument.createTextNode(stripTags(translated)));
+    // Tag persi: resta il testo semplice, ma immagini e codice in linea non vanno perduti.
+    target.appendChild(owner.ownerDocument.createTextNode(stripTags(translated)));
+    for (const node of map) {
+      if (lname(node) === 'img' || lname(node) === 'code') {
+        target.appendChild(owner.ownerDocument.createTextNode(' '));
+        target.appendChild(node.cloneNode(true));
+      }
+    }
+  }
+  if (unit.el) {
+    while (unit.el.firstChild) unit.el.removeChild(unit.el.firstChild);
+    unit.el.appendChild(target);
+  } else {
+    owner.insertBefore(target, unit.nodes[0]);
+    unit.nodes.forEach((n) => owner.removeChild(n));
   }
 }
 

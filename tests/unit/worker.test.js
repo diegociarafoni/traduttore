@@ -138,6 +138,23 @@ describe('RNF-01 limiti e origini consentite', () => {
     expect(other.headers.get('access-control-allow-origin')).toBeNull();
   });
 
+  it("limita la frequenza delle richieste per indirizzo IP prima di controllare la parola d'ordine", async () => {
+    const seen = [];
+    const LIMITATORE = { limit: async ({ key }) => (seen.push(key), { success: seen.length <= 1 }) };
+    const env = { ...ENV, LIMITATORE };
+    const deepl = vi.fn(async () => json({ character_count: 1, character_limit: 2 }));
+    const req = () => {
+      const r = request('/api/utilizzo');
+      r.headers.set('cf-connecting-ip', '203.0.113.7');
+      return r;
+    };
+    expect((await handle(req(), env, deepl)).status).toBe(200);
+    const blocked = await handle(req(), env, deepl);
+    expect([blocked.status, (await blocked.json()).error]).toEqual([429, 'troppe_richieste']);
+    expect(seen).toEqual(['203.0.113.7', '203.0.113.7']);
+    expect(deepl).toHaveBeenCalledTimes(1);
+  });
+
   it('espone il gestore predefinito per Cloudflare', async () => {
     const res = await worker.fetch(request('/api/utilizzo', { password: 'x' }), ENV);
     expect(res.status).toBe(401);

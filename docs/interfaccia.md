@@ -10,7 +10,7 @@ Il pulsante **Traduci** è attivo quando ci sono un documento con testo e un acc
 
 ## Messaggi
 
-I messaggi di stato usano un'area `role="status"` annunciata dai lettori di schermo, con colori distinti per esito positivo, avviso ed errore. I testi sono in `src/i18n/it.json` ([localizzazione.md](localizzazione.md)).
+I messaggi di stato usano un'area `role="status"` annunciata dai lettori di schermo, con colori distinti per esito positivo, avviso ed errore. I testi sono in `src/i18n/it/` ([localizzazione.md](localizzazione.md)).
 
 ## Aspetto e accessibilità
 

@@ -1,0 +1,16 @@
+{
+  "opt.section": "3. Opzioni di traduzione",
+  "opt.source": "Lingua di origine",
+  "opt.auto": "Rilevamento automatico",
+  "opt.target": "Lingua di destinazione",
+  "opt.format": "Formato di uscita",
+  "note.inPlace": "Stesso formato: stili, immagini, tabelle e impaginazione originali vengono mantenuti; cambia solo il testo.",
+  "note.convert": "Conversione: vengono mantenuti titoli, paragrafi, elenchi, tabelle e formattazione in linea; le immagini non vengono riportate.",
+  "note.fromPdf": "Dal PDF si recupera solo il testo: l'impaginazione originale non viene riprodotta.",
+  "note.pdfScript": "Attenzione: il PDF in uscita supporta alfabeti latino, greco e cirillico; per questa lingua è preferibile docx o epub.",
+  "format.md": "Markdown (.md)",
+  "format.docx": "Word (.docx)",
+  "format.txt": "Testo semplice (.txt)",
+  "format.epub": "EPUB (.epub)",
+  "format.pdf": "PDF (.pdf)"
+}

@@ -91,13 +91,13 @@ I commenti sono solo funzionali, brevi e sul perché: niente cronaca, riferiment
 1. Aprire la PR dal proprio ramo verso `main`, con titolo secondo la convenzione Angular. Il modello della PR (`.github/pull_request_template.md`) chiede i requisiti coperti e la lista di verifica.
 2. Attendere che tutti i controlli della PR siano verdi.
 3. Eseguire la skill `/code-review` di Claude Code sulla PR e risolvere i risultati.
-4. Unire con **Squash and merge**.
+4. Unire con **Squash and merge**, attraverso la coda di merge dove è disponibile.
 
 ## Protezione di `main` (impostazione su GitHub)
 
 Da fare una volta, in **Settings** del repository:
 
 1. **General → Pull Requests**: lasciare attivo solo **Allow squash merging**, con messaggio predefinito **Pull request title**; disattivare **Allow merge commits** e **Allow rebase merging**; attivare **Automatically delete head branches**.
-2. **Rules → Rulesets → New branch ruleset**: nome `main`, destinazione **Default branch**, stato **Active**, con **Restrict deletions**, **Block force pushes**, **Require a pull request before merging** (metodo **Squash**, con **Require conversation resolution before merging**) e **Require status checks to pass** con i controlli `test`, `e2e` e `Ramo, titolo della PR e commit`.
+2. **Rules → Rulesets → New branch ruleset**: nome `main`, destinazione **Default branch**, stato **Active**, con **Restrict deletions**, **Block force pushes**, **Require a pull request before merging** (metodo **Squash**, con **Require conversation resolution before merging**) e **Require status checks to pass** con i controlli `test`, `e2e` e `Ramo, titolo della PR e commit`; dove GitHub lo offre, anche **Require merge queue** con metodo **Squash** (i workflow `ci.yml` e `conventions.yml` girano già sull'evento `merge_group`).
 
-Su un account GitHub Free le regole dei rami valgono solo per i repository pubblici; su un repository privato servirebbe GitHub Pro, e fino ad allora l'hook `pre-push` e la CI restano l'unica protezione.
+La coda di merge è disponibile solo per i repository di un'organizzazione: su un repository personale si unisce direttamente con **Squash and merge** dopo i controlli verdi. Su un account GitHub Free le regole dei rami valgono solo per i repository pubblici; su un repository privato servirebbe GitHub Pro, e fino ad allora l'hook `pre-push` e la CI restano l'unica protezione.

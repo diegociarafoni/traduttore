@@ -10,5 +10,5 @@
 
 - [ ] Test scritti prima del codice, falliti e poi passati (unit ed e2e)
 - [ ] `docs/` aggiornata
-- [ ] Testi nuovi nel catalogo `src/i18n/it.json`
+- [ ] Testi nuovi nel catalogo `src/i18n/it/`
 - [ ] Revisione `/code-review` eseguita prima del merge
