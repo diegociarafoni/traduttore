@@ -20,7 +20,7 @@ In **Settings → Secrets and variables → Actions → Secrets**:
 
 Serve almeno una delle due chiavi; con entrambe l'utente sceglie il motore. `ANTHROPIC_API_KEY` è una chiave dell'API di Anthropic, a consumo: l'abbonamento a Claude.ai non la include. I valori si incollano senza spazi né a capo, anche se il proxy li ignora. Il workflow accetta come variabili (**Variables**) `DEEPL_KEY`, `PASSWORD` e `CLOUDFLARE_ACCOUNT_ID`, ma chiavi, parola d'ordine e token devono stare tra i segreti, che GitHub non mostra nei log. Se manca qualcosa il passo `worker` si ferma con l'elenco dei nomi mancanti.
 
-Togliere una chiave dal repository non la toglie dal Worker: per disattivare un motore si elimina anche il segreto in Cloudflare (**Workers & Pages → traduttore → Settings → Variables and Secrets**).
+Il workflow copia nel Worker le chiavi presenti e cancella dal Worker quelle tolte dal repository: per disattivare un motore basta eliminare il suo segreto e rilanciare il workflow.
 
 Per cambiare la parola d'ordine basta aggiornare il segreto `PASSWORD` e rilanciare il workflow.
 

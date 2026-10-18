@@ -5,8 +5,8 @@ workers_dev = true
 
 [vars]
 ALLOWED_ORIGINS = "https://diegociarafoni.github.io"
-# Modello usato quando si traduce con Claude.
-CLAUDE_MODEL = "claude-opus-5-5"
+# Per tradurre con un modello Claude diverso da quello predefinito (CLAUDE_MODEL in src/index.js):
+# CLAUDE_MODEL = "claude-sonnet-5-5"
 
 # Al massimo 100 richieste al minuto per indirizzo IP.
 [[ratelimits]]

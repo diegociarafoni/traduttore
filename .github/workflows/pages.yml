@@ -48,16 +48,9 @@ jobs:
         with:
           node-version-file: .nvmrc
       # Il proxy usa l'SDK di Anthropic, che wrangler include nel pacchetto da node_modules.
-      - run: npm ci --no-audit --no-fund
-      - id: deploy
-        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: 4.147.0
-          workingDirectory: worker
-          command: deploy
-      # Si caricano solo i segreti valorizzati: una chiave assente lascia disponibile l'altro motore.
+      - run: npm ci --omit=dev --no-audit --no-fund
+      # Si caricano i segreti valorizzati e si tolgono le chiavi rimosse dal repository, così il Worker
+      # offre solo i motori configurati. Prima della pubblicazione, perché il nuovo codice li trovi già.
       - name: Segreti del proxy
         working-directory: worker
         env:
@@ -70,7 +63,20 @@ jobs:
           file="$RUNNER_TEMP/segreti.json"
           trap 'rm -f "$file"' EXIT
           jq -n 'env | {PASSWORD, DEEPL_KEY, ANTHROPIC_API_KEY} | with_entries(select(.value != null and .value != ""))' > "$file"
-          npx --no-install wrangler secret bulk "$file"
+          npx --yes wrangler@4.147.0 secret bulk "$file"
+          for name in DEEPL_KEY ANTHROPIC_API_KEY; do
+            if [ -z "${!name}" ]; then
+              npx --yes wrangler@4.147.0 secret delete "$name" || echo "$name non presente nel Worker"
+            fi
+          done
+      - id: deploy
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.147.0
+          workingDirectory: worker
+          command: deploy
 
   build:
     needs: worker
