@@ -211,10 +211,11 @@ export function createClient({ apiUrl, password, fetch = globalThis.fetch, sleep
 
   return {
     usage: (signal) => call('/api/utilizzo', {}, signal),
-    translator({ sourceLang, targetLang, signal }) {
+    translator({ engine, sourceLang, targetLang, signal }) {
       return async (texts) => {
         const body = { texts: texts.map(toDeeplXml), target: targetLang.deepl.target };
         if (sourceLang) body.source = sourceLang.deepl.source;
+        if (engine) body.engine = engine;
         const data = await call(
           '/api/traduci',
           { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },

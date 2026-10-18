@@ -2,9 +2,9 @@
 
 ## Servizio
 
-La traduzione usa l'API di [DeepL](https://developers.deepl.com/docs) (`/v2/translate`). Il browser non parla direttamente con DeepL: passa dal proxy in `worker/`, che aggiunge la chiave e controlla la parola d'ordine ([proxy.md](proxy.md)). Il client è `createClient` in `src/lib/translate.js`.
+La traduzione usa l'API di [DeepL](https://developers.deepl.com/docs) (`/v2/translate`) oppure, se configurata, quella di Claude (RF-22). Con entrambi i motori disponibili l'utente sceglie quale usare; senza scelta vale DeepL. Il browser non parla direttamente con i motori: passa dal proxy in `worker/`, che aggiunge la chiave e controlla la parola d'ordine ([proxy.md](proxy.md)). Il client è `createClient` in `src/lib/translate.js`.
 
-Le lingue disponibili sono quelle supportate da DeepL (`src/lib/languages.js`); per ognuna sono indicati il codice di origine e quello di destinazione. Dove DeepL chiede una variante si usa quella europea: inglese britannico (`EN-GB`), portoghese europeo (`PT-PT`), cinese semplificato (`ZH-HANS`).
+Le lingue disponibili sono quelle supportate da DeepL (`src/lib/languages.js`), usate anche con Claude; per ognuna sono indicati il codice di origine e quello di destinazione. Dove DeepL chiede una variante si usa quella europea: inglese britannico (`EN-GB`), portoghese europeo (`PT-PT`), cinese semplificato (`ZH-HANS`).
 
 ## Segmenti e lotti
 
@@ -25,7 +25,7 @@ Al caricamento la lingua si stima nel browser con `franc-min` sui primi 6000 car
 
 ## Caratteri e quota
 
-DeepL conta i caratteri del testo inviato. Prima della traduzione l'interfaccia mostra i caratteri da tradurre (`countCharacters`: testo visibile, senza tag e senza i segmenti non traducibili) e la quota del mese ancora disponibile, letta dal proxy (`/api/utilizzo`, che interroga `/v2/usage`). Se il documento supera la quota residua compare un avviso; la quota si aggiorna dopo ogni traduzione.
+DeepL conta i caratteri del testo inviato. Prima della traduzione l'interfaccia mostra i caratteri da tradurre (`countCharacters`: testo visibile, senza tag e senza i segmenti non traducibili) e, con DeepL come motore, la quota del mese ancora disponibile, letta dal proxy (`/api/utilizzo`, che interroga `/v2/usage`). Claude non ha una quota di caratteri: si paga a consumo, e la spesa si controlla sulla console di Anthropic. Se il documento supera la quota residua compare un avviso; la quota si aggiorna dopo ogni traduzione.
 
 ## Errori
 

@@ -3,15 +3,16 @@
 ## Dati
 
 - Il file non viene caricato su alcun server: lettura, analisi e scrittura avvengono nel browser.
-- Verso l'esterno va solo il testo da tradurre, al proxy su Cloudflare Workers e da lì a DeepL. Il proxy non conserva né registra i testi (osservabilità disattivata in `worker/wrangler.toml`). Si applicano le condizioni d'uso dell'account DeepL che possiede la chiave: con l'API DeepL Pro i testi non vengono conservati, con l'API gratuita DeepL può usarli per migliorare il servizio.
+- Verso l'esterno va solo il testo da tradurre, al proxy su Cloudflare Workers e da lì al motore scelto, DeepL o Claude. Il proxy non conserva né registra i testi (osservabilità disattivata in `worker/wrangler.toml`). Si applicano le condizioni d'uso degli account che possiedono le chiavi: con l'API DeepL Pro i testi non vengono conservati, con l'API gratuita DeepL può usarli per migliorare il servizio; l'API di Anthropic non usa i testi per l'addestramento e li conserva per un periodo limitato secondo le proprie condizioni.
 - Non ci sono analisi statistiche, cookie o tracciamenti.
 
 ## Segreti e parola d'ordine
 
-- La chiave DeepL e la parola d'ordine non entrano mai nel sito: sono segreti del repository copiati nel Worker al momento della pubblicazione ([pubblicazione.md](pubblicazione.md#segreti-del-repository)).
-- Il proxy confronta la parola d'ordine a tempo costante e rifiuta ogni richiesta senza di essa prima di contattare DeepL ([proxy.md](proxy.md)).
+- Le chiavi di DeepL e di Claude e la parola d'ordine non entrano mai nel sito: sono segreti del repository copiati nel Worker al momento della pubblicazione ([pubblicazione.md](pubblicazione.md#segreti-del-repository)).
+- Il proxy confronta la parola d'ordine a tempo costante e rifiuta ogni richiesta senza di essa prima di contattare i motori ([proxy.md](proxy.md)).
 - Nel browser la parola d'ordine si conserva in `localStorage` solo se l'utente spunta «Memorizza la parola d'ordine in questo browser»; togliendo la spunta, o se l'accesso fallisce, viene cancellata.
-- La parola d'ordine protegge la quota DeepL, non i dati: chi la conosce può tradurre. Si consiglia una parola lunga e una chiave DeepL con limite di spesa; per revocare l'accesso si cambia il segreto `PASSWORD` e si rilancia il workflow.
+- La parola d'ordine protegge le quote e la spesa, non i dati: chi la conosce può tradurre. Si consiglia una parola lunga, una chiave DeepL con limite di spesa e un limite di spesa mensile sulla console di Anthropic;
+- Il testo dei documenti arriva a Claude come contenuto da tradurre: le istruzioni del proxy chiedono di non eseguire richieste che vi compaiono, e la risposta è vincolata a uno schema JSON che contiene solo traduzioni. per revocare l'accesso si cambia il segreto `PASSWORD` e si rilancia il workflow.
 
 ## Content Security Policy
 

@@ -30,6 +30,7 @@ Documento unico dei requisiti. I codici (RF funzionali, RNF non funzionali) comp
 | RF-19 | Elenchi annidati e note a piè di pagina nella conversione tra formati                                        | P2       | da fare |                                                              |
 | RF-20 | Avviso al termine se alcuni segmenti restano nella lingua originale dopo i ritentativi                       | P1       | fatta   | `tests/unit/translate.test.js`, e2e                          |
 | RF-21 | Il pulsante Traduci disattivo spiega quale passo manca                                                       | P1       | fatta   | `tests/e2e/traduzione.spec.js`                               |
+| RF-22 | Claude come motore alternativo a DeepL, scelto dall'utente quando sono configurati entrambi                  | P1       | fatta   | `tests/unit/worker.test.js`, `tests/unit/api.test.js`, e2e   |
 
 ## Requisiti non funzionali (RNF)
 

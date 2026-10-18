@@ -6,21 +6,21 @@ Node.js 22 (versione in `.nvmrc`), git, [Gitleaks](https://github.com/gitleaks/g
 
 ## Comandi
 
-| Comando                             | Effetto                                                                                    |
-| ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| `npm run worker`                    | proxy DeepL in locale su `http://localhost:8787`, con i valori di `.dev.vars` in `worker/` |
-| `npm run dev`                       | server di sviluppo con ricarica automatica, collegato al proxy locale                      |
-| `npm run build` / `npm run preview` | sito di produzione in `dist/` e sua anteprima                                              |
-| `npm test`                          | unit test (Vitest, ambiente jsdom)                                                         |
-| `npm run test:coverage`             | unit test con soglia di copertura della logica                                             |
-| `npm run test:e2e`                  | test end-to-end, accessibilità e schermate (Playwright, Chromium)                          |
-| `npm run lint` / `npm run format`   | ESLint senza avvisi / Prettier                                                             |
-| `npm run check:conventions`         | documentazione, commenti, testi dell'interfaccia, licenze                                  |
-| `npm run verifica -- --test`        | i controlli veloci della CI, da lanciare prima del push se gli hook non sono attivi        |
+| Comando                             | Effetto                                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `npm run worker`                    | proxy di traduzione in locale su `http://localhost:8787`, con i valori di `.dev.vars` in `worker/` |
+| `npm run dev`                       | server di sviluppo con ricarica automatica, collegato al proxy locale                              |
+| `npm run build` / `npm run preview` | sito di produzione in `dist/` e sua anteprima                                                      |
+| `npm test`                          | unit test (Vitest, ambiente jsdom)                                                                 |
+| `npm run test:coverage`             | unit test con soglia di copertura della logica                                                     |
+| `npm run test:e2e`                  | test end-to-end, accessibilità e schermate (Playwright, Chromium)                                  |
+| `npm run lint` / `npm run format`   | ESLint senza avvisi / Prettier                                                                     |
+| `npm run check:conventions`         | documentazione, commenti, testi dell'interfaccia, licenze                                          |
+| `npm run verifica -- --test`        | i controlli veloci della CI, da lanciare prima del push se gli hook non sono attivi                |
 
 ## Proxy in locale
 
-Il sito di sviluppo chiama il proxy indicato da `VITE_API_URL` (in `.env.development`: `http://localhost:8787`). Per provare traduzioni vere si copia `worker/.dev.vars.example` in `.dev.vars` nella stessa cartella (escluso da git), vi si scrivono una chiave DeepL e una parola d'ordine qualsiasi, e si lancia `npm run worker` accanto a `npm run dev`. Il build di produzione fallisce se `VITE_API_URL` manca.
+Il sito di sviluppo chiama il proxy indicato da `VITE_API_URL` (in `.env.development`: `http://localhost:8787`). Per provare traduzioni vere si copia `worker/.dev.vars.example` in `.dev.vars` nella stessa cartella (escluso da git), vi si scrivono una chiave DeepL, una chiave Claude o entrambe e una parola d'ordine qualsiasi, e si lancia `npm run worker` accanto a `npm run dev`. Il build di produzione fallisce se `VITE_API_URL` manca.
 
 ## Metodo
 

@@ -45,6 +45,7 @@ const state = {
   detected: null,
   client: null,
   usage: null,
+  preferredEngine: null,
   controller: null,
   url: null,
   loading: null,
@@ -69,8 +70,16 @@ function setup() {
 
   const prefs = store.getJson(PREFS_STORAGE);
   if (prefs.target && byCode(prefs.target)) $('target').value = prefs.target;
+  state.preferredEngine = prefs.engine;
+  const savePrefs = () =>
+    store.set(PREFS_STORAGE, JSON.stringify({ target: $('target').value, engine: state.preferredEngine }));
   $('target').addEventListener('change', () => {
-    store.set(PREFS_STORAGE, JSON.stringify({ target: $('target').value }));
+    savePrefs();
+    showInfo();
+  });
+  $('engine').addEventListener('change', () => {
+    state.preferredEngine = $('engine').value;
+    savePrefs();
     showInfo();
   });
   $('source').addEventListener('change', showInfo);
@@ -83,6 +92,7 @@ function setup() {
   $('password').addEventListener('input', () => {
     state.client = null;
     state.usage = null;
+    updateEngines();
     $('access').textContent = '';
     $('password').removeAttribute('aria-invalid');
     updateButton();
@@ -149,8 +159,26 @@ async function login() {
     // Si dimentica la parola d'ordine solo se è errata, non per un problema di rete o del servizio.
     if (err?.code === 'parola_d_ordine') store.set(PASSWORD_STORAGE, null);
   }
+  updateEngines();
   showInfo();
   updateButton();
+}
+
+const ENGINE_LABELS = { deepl: () => t('opt.engineDeepl'), claude: () => t('opt.engineClaude') };
+
+// Il proxy indica i motori utilizzabili; la scelta compare solo se ce n'è più di uno.
+// Un proxy che non li indica offre soltanto DeepL.
+function updateEngines() {
+  const engines = state.usage ? (state.usage.engines ?? ['deepl']).filter((e) => Object.hasOwn(ENGINE_LABELS, e)) : [];
+  const wanted = engines.includes(state.preferredEngine) ? state.preferredEngine : engines[0];
+  $('engine').replaceChildren(...engines.map((e) => option(e, ENGINE_LABELS[e]())));
+  if (wanted) $('engine').value = wanted;
+  $('engine-field').hidden = engines.length < 2;
+}
+
+// La quota ha senso solo per DeepL, l'unico motore che la comunica.
+function deeplQuota() {
+  return $('engine').value === 'deepl' && state.usage?.limit ? state.usage : null;
 }
 
 // `info` marca gli avvisi derivati dal documento, che showInfo rimuove quando non valgono più;
@@ -173,7 +201,7 @@ function updateButton() {
   $('translate-hint').textContent = running ? '' : missing;
   $('file').disabled = running;
   $('drop').setAttribute('aria-disabled', String(running));
-  for (const id of ['source', 'target', 'out-format']) $(id).disabled = running;
+  for (const id of ['engine', 'source', 'target', 'out-format']) $(id).disabled = running;
 }
 
 function updateFormatNote() {
@@ -202,8 +230,9 @@ function showInfo() {
     [t('info.detected'), state.detected ? state.detected.name : t('info.undetected')],
     [t('info.text'), t('info.textValue', { chars: nf(chars) })],
   ];
-  if (state.usage?.limit) {
-    rows.push([t('info.quota'), t('info.quotaValue', { left: nf(Math.max(0, state.usage.limit - state.usage.used)) })]);
+  const quota = deeplQuota();
+  if (quota) {
+    rows.push([t('info.quota'), t('info.quotaValue', { left: nf(Math.max(0, quota.limit - quota.used)) })]);
   }
   info.replaceChildren(
     ...rows.flatMap(([k, v]) => {
@@ -219,7 +248,7 @@ function showInfo() {
   // Gli avvisi sul documento non coprono gli esiti di analisi e traduzione ancora visibili.
   if ($('status').textContent && !$('status').hasAttribute('data-info')) return;
   const source = $('source').value ? byCode($('source').value) : state.detected;
-  if (state.usage?.limit && chars > state.usage.limit - state.usage.used) {
+  if (quota && chars > quota.limit - quota.used) {
     setStatus(t('info.overQuota'), 'warn', { info: true });
   } else if (source && source.code === $('target').value) {
     setStatus(t('info.sameLanguage', { lang: source.name }), 'warn', { info: true });
@@ -284,7 +313,12 @@ async function run() {
   setStatus(t('run.inProgress', { lang: target.name }));
   let untranslated = 0;
 
-  const translator = state.client.translator({ sourceLang: source, targetLang: target, signal: controller.signal });
+  const translator = state.client.translator({
+    engine: $('engine').value,
+    sourceLang: source,
+    targetLang: target,
+    signal: controller.signal,
+  });
   const translateAll = (segments) =>
     translateSegments(segments, translator, {
       signal: controller.signal,
@@ -317,6 +351,7 @@ async function run() {
       .usage()
       .then((u) => {
         state.usage = u;
+        updateEngines();
         showInfo();
       })
       .catch(() => {});

@@ -4,16 +4,17 @@ Il codice del progetto è sotto GPL-3.0 o successiva ([LICENSE](../LICENSE)).
 
 ## Dipendenze di produzione
 
-| Pacchetto          | Uso                                                              | Licenza                           |
-| ------------------ | ---------------------------------------------------------------- | --------------------------------- |
-| `marked`           | lettura del Markdown                                             | MIT                               |
-| `mammoth`          | lettura dei docx in HTML                                         | BSD-2-Clause                      |
-| `docx`             | scrittura dei docx                                               | MIT                               |
-| `jszip`            | pacchetti docx ed epub                                           | MIT o GPL-3.0                     |
-| `pdfjs-dist`       | lettura dei PDF (versione `legacy`, compatibile con più browser) | Apache-2.0                        |
-| `jspdf`            | scrittura dei PDF                                                | MIT                               |
-| `dejavu-fonts-ttf` | caratteri del PDF in uscita                                      | Bitstream Vera e pubblico dominio |
-| `franc-min`        | rilevamento della lingua                                         | MIT                               |
+| Pacchetto           | Uso                                                              | Licenza                           |
+| ------------------- | ---------------------------------------------------------------- | --------------------------------- |
+| `marked`            | lettura del Markdown                                             | MIT                               |
+| `mammoth`           | lettura dei docx in HTML                                         | BSD-2-Clause                      |
+| `docx`              | scrittura dei docx                                               | MIT                               |
+| `jszip`             | pacchetti docx ed epub                                           | MIT o GPL-3.0                     |
+| `pdfjs-dist`        | lettura dei PDF (versione `legacy`, compatibile con più browser) | Apache-2.0                        |
+| `jspdf`             | scrittura dei PDF                                                | MIT                               |
+| `dejavu-fonts-ttf`  | caratteri del PDF in uscita                                      | Bitstream Vera e pubblico dominio |
+| `franc-min`         | rilevamento della lingua                                         | MIT                               |
+| `@anthropic-ai/sdk` | chiamate a Claude dal proxy (`worker/`), non incluso nel sito    | MIT                               |
 
 ## Controllo automatico
 
