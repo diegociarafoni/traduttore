@@ -1,0 +1,9 @@
+{
+  "key.section": "1. Accesso al servizio",
+  "key.label": "Parola d'ordine",
+  "key.remember": "Memorizza la parola d'ordine in questo browser",
+  "key.hint": "Il servizio è riservato: la parola d'ordine viene fornita dall'amministratore del sito.",
+  "key.submit": "Accedi",
+  "access.checking": "Verifica della parola d'ordine in corso…",
+  "access.ok": "Accesso consentito."
+}

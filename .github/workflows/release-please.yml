@@ -1,0 +1,32 @@
+name: Changelog
+
+# Mantiene aperta una PR «chore(main): release X.Y.Z» con CHANGELOG.md ricavato dai commit
+# di main. Unirla crea il tag vX.Y.Z e la release con le note; il sito si pubblica comunque
+# a ogni modifica di main (pages.yml).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      # Per le etichette «autorelease» con cui release-please riconosce le sue PR.
+      issues: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          token: ${{ github.token }}

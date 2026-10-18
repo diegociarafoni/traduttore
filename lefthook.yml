@@ -1,0 +1,44 @@
+# Hook git locali (https://lefthook.dev): i controlli veloci prima del commit,
+# tutto il resto in CI. Installazione: docs/convenzioni-git.md.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: formattazione
+      glob: '*.{js,mjs,json,css,html,md,yml,yaml}'
+      run: npx prettier --check {staged_files}
+    - name: analisi statica
+      glob: '*.{js,mjs}'
+      run: npx eslint --max-warnings 0 --no-warn-ignored {staged_files}
+    - name: testi dell'interfaccia
+      glob: '{src/**,index.html}'
+      run: node tool/check-i18n.mjs
+    - name: autore del commit
+      run: node tool/check-autore.mjs
+    - name: segreti
+      run: gitleaks git --pre-commit --staged --redact --no-banner
+
+commit-msg:
+  jobs:
+    - name: messaggio secondo la convenzione Angular
+      run: node tool/check-commit-msg.mjs {1}
+
+# Prima del push i soli test collegati ai file modificati: la suite completa è in CI.
+pre-push:
+  parallel: true
+  jobs:
+    - name: nome del ramo
+      # git passa su stdin i rami di destinazione: si controllano quelli.
+      use_stdin: true
+      run: node tool/check-branch-name.mjs --pre-push
+    - name: messaggi dei commit del ramo
+      run: |
+        git fetch -q origin main || true
+        node tool/check-commit-msg.mjs --range "$(git merge-base origin/main HEAD)..HEAD"
+    - name: documentazione
+      run: node tool/check-docs.mjs
+    - name: commenti
+      run: node tool/check-comments.mjs
+    - name: nomi dei test
+      run: node tool/check-test-names.mjs
+    - name: test dei file modificati
+      run: tool/test-veloci.sh

@@ -1,0 +1,5 @@
+{
+  "app.title": "Traduttore di documenti",
+  "app.lead": "Traduce file Markdown, Word, testo, EPUB e PDF mantenendo la struttura, oppure li converte in un altro formato. Il file viene elaborato interamente nel browser: solo il testo da tradurre viene inviato a DeepL.",
+  "app.footer": "Codice sorgente e documentazione"
+}

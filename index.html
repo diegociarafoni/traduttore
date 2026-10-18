@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' __API_ORIGIN__; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Traduttore</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>"
+    />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1 data-i18n="app.title"></h1>
+        <p class="lead" data-i18n="app.lead"></p>
+      </header>
+
+      <section class="card" aria-labelledby="sec-key">
+        <h2 id="sec-key" data-i18n="key.section"></h2>
+        <form id="login" class="row">
+          <label class="grow">
+            <span data-i18n="key.label"></span>
+            <input id="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button id="login-button" type="submit" class="secondary" data-i18n="key.submit"></button>
+        </form>
+        <label class="check"><input id="remember" type="checkbox" /> <span data-i18n="key.remember"></span></label>
+        <p id="access" role="status" aria-live="polite"></p>
+        <p class="hint" data-i18n="key.hint"></p>
+      </section>
+
+      <section class="card" aria-labelledby="sec-file">
+        <h2 id="sec-file" data-i18n="file.section"></h2>
+        <label id="drop" class="drop" tabindex="0">
+          <input id="file" type="file" accept=".md,.markdown,.txt,.docx,.epub,.pdf" hidden />
+          <span>
+            <span id="drop-text" data-i18n="file.drop"></span><br />
+            <small data-i18n="file.formats"></small>
+          </span>
+        </label>
+        <dl id="file-info" class="info" hidden></dl>
+      </section>
+
+      <section class="card" aria-labelledby="sec-opt">
+        <h2 id="sec-opt" data-i18n="opt.section"></h2>
+        <div class="row">
+          <label>
+            <span data-i18n="opt.source"></span>
+            <select id="source"></select>
+          </label>
+          <label>
+            <span data-i18n="opt.target"></span>
+            <select id="target"></select>
+          </label>
+          <label>
+            <span data-i18n="opt.format"></span>
+            <select id="out-format"></select>
+          </label>
+        </div>
+        <p id="format-note" class="hint"></p>
+      </section>
+
+      <section class="card actions">
+        <button id="translate" type="button" disabled data-i18n="run.translate"></button>
+        <button id="cancel" type="button" class="secondary" hidden data-i18n="run.cancel"></button>
+        <div id="progress-wrap" hidden>
+          <progress id="progress" max="1" value="0" aria-labelledby="progress-text"></progress>
+          <span id="progress-text"></span>
+        </div>
+        <p id="status" role="status" aria-live="polite"></p>
+        <a id="download" class="download" hidden></a>
+      </section>
+
+      <footer>
+        <a
+          href="https://github.com/diegociarafoni/traduttore"
+          target="_blank"
+          rel="noopener"
+          data-i18n="app.footer"
+        ></a>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

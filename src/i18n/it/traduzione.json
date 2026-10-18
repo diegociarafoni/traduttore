@@ -1,0 +1,8 @@
+{
+  "run.translate": "Traduci",
+  "run.cancel": "Annulla",
+  "run.progress": "{done} / {total} segmenti",
+  "run.inProgress": "Traduzione in {lang} in corso…",
+  "run.done": "Traduzione completata.",
+  "run.download": "Scarica {file}"
+}

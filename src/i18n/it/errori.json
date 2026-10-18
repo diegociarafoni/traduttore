@@ -1,0 +1,15 @@
+{
+  "error.unsupportedFormat": "Formato non supportato: {format}",
+  "error.rateLimit": "Limite di richieste raggiunto: attendere qualche minuto e riprovare.",
+  "error.connection": "Impossibile contattare il servizio di traduzione: verificare la connessione.",
+  "error.aborted": "Traduzione annullata.",
+  "error.pdfNoText": "Il PDF non contiene testo selezionabile (probabilmente è una scansione o un'immagine). In questa versione è necessario un PDF con livello di testo: eseguire prima un OCR.",
+  "error.docxInvalid": "Il file non sembra un documento Word valido.",
+  "error.epubNoContainer": "Il file non sembra un EPUB valido (manca META-INF/container.xml).",
+  "error.epubNoOpf": "EPUB non valido: pacchetto OPF non trovato.",
+  "error.password": "Parola d'ordine errata.",
+  "error.quota": "Quota mensile DeepL esaurita.",
+  "error.config": "Il servizio di traduzione non è configurato correttamente: contattare l'amministratore.",
+  "error.tooLarge": "Richiesta troppo grande per il servizio di traduzione.",
+  "error.service": "Errore del servizio di traduzione ({status})."
+}

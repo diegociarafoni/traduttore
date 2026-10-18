@@ -1,0 +1,4 @@
+# Vulnerabilità valutate e accettate: motivazione in docs/sicurezza.md#vulnerabilità-note-accettate.
+[[IgnoredVulns]]
+id = "GHSA-hp3w-g68c-fv3c"
+reason = "sprintf-js arriva tramite argparse, usato solo dalla riga di comando di mammoth: nel browser non viene eseguito"

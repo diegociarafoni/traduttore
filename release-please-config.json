@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "traduttore",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "changelog-sections": [
+        {
+          "type": "feat",
+          "section": "Novità"
+        },
+        {
+          "type": "fix",
+          "section": "Correzioni"
+        },
+        {
+          "type": "perf",
+          "section": "Prestazioni"
+        },
+        {
+          "type": "revert",
+          "section": "Annullamenti"
+        },
+        {
+          "type": "docs",
+          "section": "Documentazione",
+          "hidden": true
+        },
+        {
+          "type": "style",
+          "section": "Stile",
+          "hidden": true
+        },
+        {
+          "type": "refactor",
+          "section": "Struttura del codice",
+          "hidden": true
+        },
+        {
+          "type": "test",
+          "section": "Test",
+          "hidden": true
+        },
+        {
+          "type": "build",
+          "section": "Dipendenze e build",
+          "hidden": true
+        },
+        {
+          "type": "ci",
+          "section": "Integrazione continua",
+          "hidden": true
+        }
+      ],
+      "draft": false
+    }
+  }
+}

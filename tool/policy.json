@@ -1,0 +1,52 @@
+{
+  "licenses": {
+    "allowed": [
+      "MIT",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "Apache-2.0",
+      "ISC",
+      "0BSD",
+      "Zlib",
+      "Unlicense",
+      "MPL-2.0",
+      "BlueOak-1.0.0",
+      "CC0-1.0",
+      "Python-2.0",
+      "Bitstream-Vera"
+    ],
+    "overrides": {
+      "dejavu-fonts-ttf": {
+        "license": "Bitstream-Vera",
+        "reason": "I caratteri DejaVu derivano da Bitstream Vera (licenza permissiva) con modifiche di pubblico dominio; il package.json rimanda al file LICENSE"
+      },
+      "duck": {
+        "license": "BSD-2-Clause",
+        "reason": "Il package.json dichiara solo \"BSD\"; il file LICENSE è il testo BSD a due clausole (verificato a mano)"
+      }
+    }
+  },
+  "coverage": {
+    "logicMinPercent": 80,
+    "branchesMinPercent": 80
+  },
+  "budget": {
+    "mainChunkMaxKilobytes": 1500,
+    "distMaxMegabytes": 12
+  },
+  "i18n": {
+    "maxHardcodedTexts": 0,
+    "areas": {
+      "app": ["app."],
+      "accesso": ["key.", "access."],
+      "documento": ["file.", "info.", "doc."],
+      "opzioni": ["opt.", "note.", "format."],
+      "traduzione": ["run."],
+      "errori": ["error."],
+      "lingue": ["lang."]
+    }
+  },
+  "tests": {
+    "requirementCode": "\\bRN?F-\\d{2,}\\b"
+  }
+}

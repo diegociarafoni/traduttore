@@ -1,0 +1,60 @@
+name: Convenzioni
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  # Nella coda di merge il controllo è già superato sulla PR: il job si salta.
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  conventions:
+    name: Ramo, titolo della PR e commit
+    if: github.event_name == 'pull_request' && github.event.pull_request.state == 'open'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Nome del ramo
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: node tool/check-branch-name.mjs "$BRANCH"
+      # Con lo squash merge il titolo della PR diventa il commit su main.
+      - name: Titolo della PR
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: node tool/check-commit-msg.mjs --text "$TITLE"
+      - name: Descrizione della PR senza attribuzione
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: node tool/check-commit-msg.mjs --attribuzione "$BODY"
+      - name: Messaggi dei commit
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base="$(git merge-base "origin/$BASE_REF" "$HEAD")"
+          node tool/check-commit-msg.mjs --range "$base..$HEAD"
+      - name: Segreti nei commit della PR (Gitleaks)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          base="$(git merge-base "origin/$BASE_REF" "$HEAD")"
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner --log-opts="$base..$HEAD" .
