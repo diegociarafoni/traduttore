@@ -1,7 +1,7 @@
 {
   "name": "traduttore",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Traduzione automatica di documenti (md, docx, txt, epub, pdf) nel browser",
   "scripts": {
