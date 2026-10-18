@@ -16,7 +16,8 @@ export default defineConfig({
   projects: [
     { name: 'chiaro', use: { ...devices['Desktop Chrome'], colorScheme: 'light' } },
     { name: 'scuro', use: { ...devices['Desktop Chrome'], colorScheme: 'dark' } },
-    { name: 'telefono', use: { ...devices['Pixel 7'], colorScheme: 'light' } },
+    // Rapporto di pixel intero: con quello frazionario del Pixel 7 (2,625) l'antialiasing cambia tra macchine.
+    { name: 'telefono', use: { ...devices['Pixel 7'], deviceScaleFactor: 2, colorScheme: 'light' } },
   ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${port} --strictPort`,

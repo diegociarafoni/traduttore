@@ -29,4 +29,4 @@
 
 ## Vulnerabilità note accettate
 
-`npm audit` segnala `sprintf-js` (gravità moderata, negazione del servizio con specificatori di precisione molto grandi), arrivato tramite `argparse`, che `mammoth` usa solo per la sua riga di comando. Nel browser quel codice non viene eseguito; si rivaluta a ogni aggiornamento di `mammoth`.
+`npm audit` segnala `sprintf-js` (gravità moderata, negazione del servizio con specificatori di precisione molto grandi), arrivato tramite `argparse`, che `mammoth` usa solo per la sua riga di comando. Nel browser quel codice non viene eseguito; si rivaluta a ogni aggiornamento di `mammoth`. OSV-Scanner la ignora tramite `osv-scanner.toml` (`GHSA-hp3w-g68c-fv3c`); ogni nuova eccezione va aggiunta lì con il motivo e descritta qui.
