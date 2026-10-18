@@ -15,10 +15,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:conventions": "node tool/check-docs.mjs && node tool/check-comments.mjs && node tool/check-i18n.mjs && node tool/check-licenses.mjs",
-    "verifica": "tool/verifica.sh"
+    "verifica": "tool/verifica.sh",
+    "worker": "npx --yes wrangler@4.147.0 dev -c worker/wrangler.toml"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
     "dejavu-fonts-ttf": "^2.37.3",
     "docx": "^9.12.0",
     "franc-min": "^6.2.0",

@@ -28,7 +28,7 @@ if git ls-files -s | grep -q '^160000'; then
 fi
 if $test; then
   npm run --silent test:coverage
-  npm run --silent build
+  VITE_API_URL="${VITE_API_URL:-https://proxy.traduttore.test}" npm run --silent build
   node tool/check-bundle.mjs
 fi
 if $e2e; then npm run --silent test:e2e; fi

@@ -1,28 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  buildSystemPrompt,
-  estimateCost,
-  formatBatch,
+  countCharacters,
+  fromDeeplXml,
   makeBatches,
   needsTranslation,
-  parseBatch,
+  toDeeplXml,
   translateSegments,
 } from '../../src/lib/translate.js';
-import { byCode } from '../../src/lib/languages.js';
 
-describe('RF-05 lotti e analisi della risposta', () => {
-  it('formatta e rilegge i segmenti numerati', () => {
-    const text = formatBatch(['uno', 'due <1>tre</1>']);
-    expect(parseBatch(text, 2)).toEqual(['uno', 'due <1>tre</1>']);
+describe('RF-05 lotti e tag', () => {
+  it('converte i tag numerati in XML valido per DeepL e ritorno', () => {
+    const s = 'a <1>b <2/></1> &amp; c';
+    expect(toDeeplXml(s)).toBe('a <t1>b <t2/></t1> &amp; c');
+    expect(fromDeeplXml(toDeeplXml(s))).toBe(s);
+    expect(fromDeeplXml('<t3 />x')).toBe('<3/>x');
   });
 
-  it('segnala i segmenti mancanti con null', () => {
-    expect(parseBatch('<s i="2">b</s>', 3)).toEqual([null, 'b', null]);
-  });
-
-  it('divide in lotti per dimensione', () => {
+  it('divide in lotti per dimensione e per numero di segmenti', () => {
     const items = Array.from({ length: 5 }, () => ({ text: 'x'.repeat(40) }));
     expect(makeBatches(items, 100, 10).map((b) => b.length)).toEqual([2, 2, 1]);
+    expect(makeBatches(items, 1000, 2).map((b) => b.length)).toEqual([2, 2, 1]);
   });
 
   it('RF-13 ignora segmenti senza lettere', () => {
@@ -30,16 +27,8 @@ describe('RF-05 lotti e analisi della risposta', () => {
     expect(needsTranslation('Ciao')).toBe(true);
   });
 
-  it('RF-02 RF-03 include lingua di origine e destinazione nel prompt', () => {
-    const p = buildSystemPrompt({ sourceLang: byCode('en'), targetLang: byCode('it') });
-    expect(p).toContain('from English into Italian');
-    expect(buildSystemPrompt({ sourceLang: null, targetLang: byCode('it') })).toContain('detect it automatically');
-  });
-
-  it('RF-10 stima il costo in base al modello', () => {
-    const e = estimateCost(['a'.repeat(3500)], 'claude-haiku-5-5');
-    expect(e.tokens).toBe(1000);
-    expect(e.usd).toBeGreaterThan(0);
+  it('RF-10 conta i caratteri fatturati, senza tag e senza segmenti non traducibili', () => {
+    expect(countCharacters(['<1>Ciao</1> &amp; tu', '42'])).toBe(9);
   });
 });
 
@@ -71,6 +60,11 @@ describe('RF-05 translateSegments', () => {
     };
     const out = await translateSegments(['uno', 'due', 'tre'], batch);
     expect(out).toEqual(['T:uno', 'T:due', 'T:tre']);
+  });
+
+  it('dopo gli ultimi tentativi accetta la traduzione anche senza tag', async () => {
+    const batch = async (texts) => texts.map((t) => t.replace(/<\/?1>/g, ''));
+    expect(await translateSegments(['a <1>b</1>', 'c <1>d</1>'], batch)).toEqual(['a b', 'c d']);
   });
 
   it("RF-11 riporta l'avanzamento", async () => {

@@ -64,7 +64,7 @@ export async function renderDoc(doc, format, { lang } = {}) {
 
 const inPlace = (inFormat, outFormat) => inFormat === outFormat && (inFormat === 'docx' || inFormat === 'epub');
 
-// Analizza il file senza tradurlo: restituisce i segmenti (per rilevare la lingua e stimare il costo).
+// Analizza il file senza tradurlo: restituisce i segmenti (per rilevare la lingua e contare i caratteri).
 export async function inspectFile(buffer, format, name) {
   if (format === 'docx') return { segments: await docxSegmentsPreview(buffer) };
   if (format === 'epub') {

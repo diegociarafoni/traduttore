@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { prepare, useFixedFont } from './helpers.js';
+import { mockApi, prepare, useFixedFont } from './helpers.js';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 const violations = async (page) =>
@@ -10,6 +10,7 @@ const violations = async (page) =>
 
 test.describe('RNF-02 accessibilità e aspetto in tema chiaro e scuro', () => {
   test('nessuna violazione WCAG AA nella pagina iniziale', async ({ page }) => {
+    await mockApi(page);
     await page.goto('/');
     expect(await violations(page)).toEqual([]);
   });

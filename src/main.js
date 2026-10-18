@@ -2,18 +2,14 @@ import './style.css';
 import { t, translateDom } from './i18n/index.js';
 import { LANGUAGES, byCode } from './lib/languages.js';
 import { detectLanguage } from './lib/detect.js';
-import {
-  MODELS,
-  createAnthropicTranslator,
-  describeApiError,
-  estimateCost,
-  translateSegments,
-} from './lib/translate.js';
+import { countCharacters, createClient, describeError, translateSegments } from './lib/translate.js';
 import { FORMATS, formatFromName, inspectFile, translateFile } from './lib/pipeline.js';
 
 const $ = (id) => document.getElementById(id);
-const KEY_STORAGE = 'traduttore.apiKey';
+const API_URL = import.meta.env.VITE_API_URL;
+const PASSWORD_STORAGE = 'traduttore.password';
 const PREFS_STORAGE = 'traduttore.prefs';
+const nf = (n) => n.toLocaleString('it-IT');
 
 const store = {
   get(k) {
@@ -33,7 +29,17 @@ const store = {
   },
 };
 
-const state = { file: null, buffer: null, format: null, segments: [], detected: null, controller: null, url: null };
+const state = {
+  file: null,
+  buffer: null,
+  format: null,
+  segments: [],
+  detected: null,
+  client: null,
+  usage: null,
+  controller: null,
+  url: null,
+};
 
 function option(value, label) {
   const o = document.createElement('option');
@@ -44,9 +50,8 @@ function option(value, label) {
 
 function setup() {
   translateDom(document);
-  for (const m of MODELS) $('model').append(option(m.id, t(m.labelKey)));
   $('source').append(option('', t('opt.auto')));
-  for (const l of LANGUAGES) {
+  for (const l of [...LANGUAGES].sort((a, b) => a.name.localeCompare(b.name, 'it'))) {
     $('source').append(option(l.code, l.name));
     $('target').append(option(l.code, l.name));
   }
@@ -54,33 +59,33 @@ function setup() {
   for (const [k, f] of Object.entries(FORMATS)) $('out-format').append(option(k, t(f.labelKey)));
 
   const prefs = JSON.parse(store.get(PREFS_STORAGE) || '{}');
-  if (prefs.model && MODELS.some((m) => m.id === prefs.model)) $('model').value = prefs.model;
   if (prefs.target && byCode(prefs.target)) $('target').value = prefs.target;
-  const savedKey = store.get(KEY_STORAGE);
-  if (savedKey) {
-    $('api-key').value = savedKey;
-    $('remember').checked = true;
-  }
-
-  const savePrefs = () =>
-    store.set(PREFS_STORAGE, JSON.stringify({ model: $('model').value, target: $('target').value }));
-  $('model').addEventListener('change', () => {
-    savePrefs();
-    showInfo();
-  });
   $('target').addEventListener('change', () => {
-    savePrefs();
+    store.set(PREFS_STORAGE, JSON.stringify({ target: $('target').value }));
     showInfo();
   });
   $('source').addEventListener('change', showInfo);
   $('out-format').addEventListener('change', updateFormatNote);
-  $('api-key').addEventListener('input', () => {
-    if ($('remember').checked) store.set(KEY_STORAGE, $('api-key').value.trim() || null);
+
+  $('login').addEventListener('submit', (e) => {
+    e.preventDefault();
+    login();
+  });
+  $('password').addEventListener('input', () => {
+    state.client = null;
+    state.usage = null;
+    $('access').textContent = '';
     updateButton();
   });
-  $('remember').addEventListener('change', () =>
-    store.set(KEY_STORAGE, $('remember').checked ? $('api-key').value.trim() || null : null),
-  );
+  $('remember').addEventListener('change', () => {
+    store.set(PASSWORD_STORAGE, $('remember').checked && state.client ? $('password').value : null);
+  });
+  const saved = store.get(PASSWORD_STORAGE);
+  if (saved) {
+    $('password').value = saved;
+    $('remember').checked = true;
+    login();
+  }
 
   const drop = $('drop');
   drop.addEventListener('keydown', (e) => {
@@ -104,13 +109,36 @@ function setup() {
   $('cancel').addEventListener('click', () => state.controller?.abort());
 }
 
+async function login() {
+  const password = $('password').value;
+  if (!password) return;
+  const client = createClient({ apiUrl: API_URL, password });
+  $('access').className = '';
+  $('access').textContent = t('access.checking');
+  try {
+    state.usage = await client.usage();
+    state.client = client;
+    $('access').className = 'ok';
+    $('access').textContent = t('access.ok');
+    store.set(PASSWORD_STORAGE, $('remember').checked ? password : null);
+  } catch (err) {
+    state.client = null;
+    state.usage = null;
+    $('access').className = 'error';
+    $('access').textContent = describeError(err);
+    store.set(PASSWORD_STORAGE, null);
+  }
+  showInfo();
+  updateButton();
+}
+
 function setStatus(text, kind = '') {
   $('status').textContent = text;
   $('status').className = kind;
 }
 
 function updateButton() {
-  $('translate').disabled = !(state.segments.length && $('api-key').value.trim() && !state.controller);
+  $('translate').disabled = !(state.segments.length && state.client && !state.controller);
 }
 
 function updateFormatNote() {
@@ -122,9 +150,7 @@ function updateFormatNote() {
     notes.push(t('note.convert'));
   }
   if (state.format === 'pdf') notes.push(t('note.fromPdf'));
-  if (out === 'pdf' && ['zh', 'ja', 'ko', 'ar', 'he', 'fa', 'hi', 'th'].includes($('target').value)) {
-    notes.push(t('note.pdfScript'));
-  }
+  if (out === 'pdf' && ['zh', 'ja', 'ko', 'ar'].includes($('target').value)) notes.push(t('note.pdfScript'));
   $('format-note').textContent = notes.join(' ');
 }
 
@@ -134,19 +160,16 @@ function showInfo() {
     info.hidden = true;
     return;
   }
-  const est = estimateCost(state.segments, $('model').value);
-  const source = $('source').value ? byCode($('source').value) : state.detected;
-  const usd = est.usd < 0.01 ? '< 0,01' : est.usd.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+  const chars = countCharacters(state.segments);
   const rows = [
     [t('info.file'), `${state.file.name} (${Math.max(1, Math.round(state.file.size / 1024))} KB)`],
     [t('info.format'), t(FORMATS[state.format].labelKey)],
     [t('info.detected'), state.detected ? state.detected.name : t('info.undetected')],
-    [
-      t('info.text'),
-      t('info.textValue', { chars: est.chars.toLocaleString('it-IT'), tokens: est.tokens.toLocaleString('it-IT') }),
-    ],
-    [t('info.cost'), t('info.costValue', { usd })],
+    [t('info.text'), t('info.textValue', { chars: nf(chars) })],
   ];
+  if (state.usage?.limit) {
+    rows.push([t('info.quota'), t('info.quotaValue', { left: nf(Math.max(0, state.usage.limit - state.usage.used)) })]);
+  }
   info.replaceChildren(
     ...rows.flatMap(([k, v]) => {
       const dt = document.createElement('dt');
@@ -157,7 +180,10 @@ function showInfo() {
     }),
   );
   info.hidden = false;
-  if (source && source.code === $('target').value) {
+  const source = $('source').value ? byCode($('source').value) : state.detected;
+  if (state.usage?.limit && chars > state.usage.limit - state.usage.used) {
+    setStatus(t('info.overQuota'), 'warn');
+  } else if (source && source.code === $('target').value) {
     setStatus(t('info.sameLanguage', { lang: source.name }), 'warn');
   } else if ($('status').className === 'warn') setStatus('');
   updateFormatNote();
@@ -201,9 +227,9 @@ function resetDownload() {
 
 async function run() {
   resetDownload();
-  const apiKey = $('api-key').value.trim();
   const target = byCode($('target').value);
-  const source = $('source').value ? byCode($('source').value) : state.detected;
+  // Senza scelta esplicita la lingua di origine la rileva DeepL, più affidabile della stima locale.
+  const source = $('source').value ? byCode($('source').value) : null;
   const outFormat = $('out-format').value;
   const controller = new AbortController();
   state.controller = controller;
@@ -214,13 +240,7 @@ async function run() {
   $('progress-text').textContent = '';
   setStatus(t('run.inProgress', { lang: target.name }));
 
-  const translator = createAnthropicTranslator({
-    apiKey,
-    model: $('model').value,
-    sourceLang: source,
-    targetLang: target,
-    signal: controller.signal,
-  });
+  const translator = state.client.translator({ sourceLang: source, targetLang: target, signal: controller.signal });
   const translateAll = (segments) =>
     translateSegments(segments, translator, {
       signal: controller.signal,
@@ -246,8 +266,15 @@ async function run() {
     a.textContent = t('run.download', { file: filename });
     a.hidden = false;
     setStatus(t('run.done'), 'ok');
+    state.client
+      .usage()
+      .then((u) => {
+        state.usage = u;
+        showInfo();
+      })
+      .catch(() => {});
   } catch (err) {
-    setStatus(describeApiError(err), 'error');
+    setStatus(describeError(err), 'error');
   } finally {
     state.controller = null;
     $('cancel').hidden = true;

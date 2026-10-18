@@ -6,7 +6,7 @@ Tutti i testi che l'utente vede sono nel catalogo `src/i18n/it.json`, con chiavi
 - Nel codice: `t('chiave', { parametro })`; i parametri si scrivono nel testo come `{parametro}`.
 - I nomi delle lingue si leggono da `lang.<codice>`.
 
-`tool/check-i18n.mjs` (in pre-commit e in CI) fallisce se il codice usa una chiave assente dal catalogo o se il catalogo contiene chiavi non usate. Le istruzioni per il modello in `src/lib/translate.js` restano in inglese, perché non sono testi dell'interfaccia.
+`tool/check-i18n.mjs` (in pre-commit e in CI) fallisce se il codice usa una chiave assente dal catalogo o se il catalogo contiene chiavi non usate.
 
 ## Aggiungere una lingua dell'interfaccia
 

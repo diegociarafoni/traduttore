@@ -87,6 +87,10 @@ h2 {
   flex: 1 1 180px;
 }
 
+#login {
+  align-items: flex-end;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -202,11 +206,17 @@ progress {
   margin: 0;
 }
 
-#status:empty {
+#access {
+  margin: 10px 0 0;
+}
+
+#status:empty,
+#access:empty {
   display: none;
 }
 
-#status.ok {
+#status.ok,
+#access.ok {
   color: var(--ok);
 }
 
@@ -214,7 +224,8 @@ progress {
   color: var(--warn);
 }
 
-#status.error {
+#status.error,
+#access.error {
   color: var(--error);
 }
 

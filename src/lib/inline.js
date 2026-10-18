@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js';
+import { collectIds, escapeText, parseTagged, sameIds, stripTags } from './tagged.js';
 
 // Formattazione in linea del modello documento: un sottoinsieme di Markdown
 // (**grassetto**, *corsivo*, `codice`, [testo](url), ![alt](url)).
@@ -79,4 +80,55 @@ function wrap(text, mark) {
   const m = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
   if (!m[2]) return text;
   return `${m[1]}${mark}${m[2]}${mark}${m[3]}`;
+}
+
+// Markdown in linea -> segmento a tag numerati, così il servizio di traduzione sposta la
+// formattazione insieme alle parole. Codice e immagini diventano tag vuoti e non si traducono.
+export function inlineToTagged(text) {
+  const map = [];
+  const add = (info) => {
+    map.push(info);
+    return map.length;
+  };
+  const styled = (r) => {
+    const body = escapeText(r.text);
+    if (!r.bold && !r.italic) return body;
+    const id = add({ bold: r.bold, italic: r.italic });
+    return `<${id}>${body}</${id}>`;
+  };
+  const runs = parseInline(text);
+  let out = '';
+  for (let i = 0; i < runs.length; i++) {
+    const r = runs[i];
+    if (r.image) out += `<${add({ raw: `![${r.text}](${r.image})` })}/>`;
+    else if (r.code) out += `<${add({ raw: `\`${r.text}\`` })}/>`;
+    else if (r.link) {
+      const id = add({ link: r.link });
+      let inner = '';
+      while (i < runs.length && runs[i].link === r.link && !runs[i].code) inner += styled(runs[i++]);
+      i--;
+      out += `<${id}>${inner}</${id}>`;
+    } else out += styled(r);
+  }
+  return { segment: out, map };
+}
+
+export function taggedToInline(translated, map) {
+  const tree = parseTagged(translated);
+  const expected = map.map((_, i) => i + 1);
+  if (!tree || !sameIds(collectIds(tree), expected)) return stripTags(translated);
+  const render = (nodes) =>
+    nodes
+      .map((n) => {
+        if (n.type === 'text') return n.text;
+        const info = map[n.id - 1];
+        if (info.raw) return info.raw;
+        const inner = render(n.children);
+        if (info.link) return `[${inner}](${info.link})`;
+        const mark = info.bold && info.italic ? '***' : info.bold ? '**' : '*';
+        const m = inner.match(/^(\s*)([\s\S]*?)(\s*)$/);
+        return m[2] ? `${m[1]}${mark}${m[2]}${mark}${m[3]}` : inner;
+      })
+      .join('');
+  return render(tree);
 }

@@ -6,16 +6,21 @@ Node.js 22 (versione in `.nvmrc`), git, [Gitleaks](https://github.com/gitleaks/g
 
 ## Comandi
 
-| Comando                             | Effetto                                                                             |
-| ----------------------------------- | ----------------------------------------------------------------------------------- |
-| `npm run dev`                       | server di sviluppo con ricarica automatica                                          |
-| `npm run build` / `npm run preview` | sito di produzione in `dist/` e sua anteprima                                       |
-| `npm test`                          | unit test (Vitest, ambiente jsdom)                                                  |
-| `npm run test:coverage`             | unit test con soglia di copertura della logica                                      |
-| `npm run test:e2e`                  | test end-to-end, accessibilità e schermate (Playwright, Chromium)                   |
-| `npm run lint` / `npm run format`   | ESLint senza avvisi / Prettier                                                      |
-| `npm run check:conventions`         | documentazione, commenti, testi dell'interfaccia, licenze                           |
-| `npm run verifica -- --test`        | i controlli veloci della CI, da lanciare prima del push se gli hook non sono attivi |
+| Comando                             | Effetto                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| `npm run worker`                    | proxy DeepL in locale su `http://localhost:8787`, con i valori di `.dev.vars` in `worker/` |
+| `npm run dev`                       | server di sviluppo con ricarica automatica, collegato al proxy locale                      |
+| `npm run build` / `npm run preview` | sito di produzione in `dist/` e sua anteprima                                              |
+| `npm test`                          | unit test (Vitest, ambiente jsdom)                                                         |
+| `npm run test:coverage`             | unit test con soglia di copertura della logica                                             |
+| `npm run test:e2e`                  | test end-to-end, accessibilità e schermate (Playwright, Chromium)                          |
+| `npm run lint` / `npm run format`   | ESLint senza avvisi / Prettier                                                             |
+| `npm run check:conventions`         | documentazione, commenti, testi dell'interfaccia, licenze                                  |
+| `npm run verifica -- --test`        | i controlli veloci della CI, da lanciare prima del push se gli hook non sono attivi        |
+
+## Proxy in locale
+
+Il sito di sviluppo chiama il proxy indicato da `VITE_API_URL` (in `.env.development`: `http://localhost:8787`). Per provare traduzioni vere si copia `worker/.dev.vars.example` in `.dev.vars` nella stessa cartella (escluso da git), vi si scrivono una chiave DeepL e una parola d'ordine qualsiasi, e si lancia `npm run worker` accanto a `npm run dev`. Il build di produzione fallisce se `VITE_API_URL` manca.
 
 ## Metodo
 
@@ -26,8 +31,8 @@ Node.js 22 (versione in `.nvmrc`), git, [Gitleaks](https://github.com/gitleaks/g
 
 ## Test
 
-- **Unit**: Vitest in `tests/unit/`; i test dei formati generano i file di prova con le stesse librerie, senza file binari nel repository. Le chiamate all'API usano un `fetch` finto che risponde in streaming (`tests/support/fake-api.js`).
-- **End-to-end**: Playwright in `tests/e2e/`, sul sito di produzione servito da `vite preview`. `tests/e2e/global-setup.js` crea i file di prova; l'API è intercettata con `page.route` e risponde con una traduzione finta (`[it]` davanti a ogni segmento). Tre progetti: `chiaro`, `scuro`, `telefono`.
+- **Unit**: Vitest in `tests/unit/`; i test dei formati generano i file di prova con le stesse librerie, senza file binari nel repository. Le chiamate al proxy e a DeepL usano un `fetch` finto (`tests/support/fake-api.js`); il proxy si prova chiamando direttamente il suo gestore (`tests/unit/worker.test.js`).
+- **End-to-end**: Playwright in `tests/e2e/`, sul sito di produzione servito da `vite preview`. `tests/e2e/global-setup.js` crea i file di prova; il proxy è intercettato con `page.route` all'indirizzo fittizio `https://proxy.traduttore.test` (impostato in `playwright.config.js`) e risponde con una traduzione finta (`[it]` davanti a ogni segmento). Tre progetti: `chiaro`, `scuro`, `telefono`.
 - **Schermate di riferimento**: in `tests/e2e/__screenshots__/`, con un carattere fisso (DejaVu Sans) caricato dal test per non dipendere dai font del sistema. Dopo una modifica grafica voluta si aggiornano con `npx playwright test --update-snapshots` e si rivedono le immagini nella PR.
 - **Determinismo**: niente attese fisse; si aspetta lo stato della pagina con le asserzioni di Playwright, che riprovano fino alla scadenza.
 

@@ -3,18 +3,19 @@
 ## Dati
 
 - Il file non viene caricato su alcun server: lettura, analisi e scrittura avvengono nel browser.
-- Verso l'esterno va solo il testo da tradurre, all'API di Anthropic (`api.anthropic.com`), con la chiave dell'utente. Si applicano le condizioni d'uso dell'API dell'account che possiede la chiave.
+- Verso l'esterno va solo il testo da tradurre, al proxy su Cloudflare Workers e da lì a DeepL. Il proxy non conserva né registra i testi (osservabilità disattivata in `worker/wrangler.toml`). Si applicano le condizioni d'uso dell'account DeepL che possiede la chiave: con l'API DeepL Pro i testi non vengono conservati, con l'API gratuita DeepL può usarli per migliorare il servizio.
 - Non ci sono analisi statistiche, cookie o tracciamenti.
 
-## Chiave API
+## Segreti e parola d'ordine
 
-- La chiave è usata direttamente dal browser (`dangerouslyAllowBrowser` nell'SDK, intestazione `anthropic-dangerous-direct-browser-access`): è il modello previsto per le app in cui ciascuno usa la propria chiave.
-- Viene conservata in `localStorage` solo se l'utente spunta «Memorizza la chiave in questo browser»; togliendo la spunta viene cancellata.
-- Si consiglia una chiave dedicata, con limite di spesa impostato nella console di Anthropic.
+- La chiave DeepL e la parola d'ordine non entrano mai nel sito: sono segreti del repository copiati nel Worker al momento della pubblicazione ([pubblicazione.md](pubblicazione.md#segreti-del-repository)).
+- Il proxy confronta la parola d'ordine a tempo costante e rifiuta ogni richiesta senza di essa prima di contattare DeepL ([proxy.md](proxy.md)).
+- Nel browser la parola d'ordine si conserva in `localStorage` solo se l'utente spunta «Memorizza la parola d'ordine in questo browser»; togliendo la spunta, o se l'accesso fallisce, viene cancellata.
+- La parola d'ordine protegge la quota DeepL, non i dati: chi la conosce può tradurre. Si consiglia una parola lunga e una chiave DeepL con limite di spesa; per revocare l'accesso si cambia il segreto `PASSWORD` e si rilancia il workflow.
 
 ## Content Security Policy
 
-`index.html` dichiara una CSP che consente script, stili, caratteri e worker solo dallo stesso sito e connessioni solo verso lo stesso sito e `https://api.anthropic.com`. Riduce l'impatto di un eventuale codice iniettato, che non potrebbe inviare la chiave altrove.
+`index.html` dichiara una CSP che consente script, stili, caratteri e worker solo dallo stesso sito e connessioni solo verso lo stesso sito e l'origine del proxy, inserita al build da `vite.config.js` a partire da `VITE_API_URL`. Riduce l'impatto di un eventuale codice iniettato, che non potrebbe inviare testi o parola d'ordine altrove.
 
 ## Controlli automatici
 

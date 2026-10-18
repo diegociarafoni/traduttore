@@ -1,47 +1,49 @@
 import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
-import { fakeReply, sseBody } from '../support/fake-api.js';
+import { API_URL } from '../../playwright.config.js';
+import { PASSWORD, USAGE, fakeTranslations } from '../support/fake-api.js';
 import { FIXTURES } from './fixtures.js';
 
-// Intercetta l'API e risponde con una traduzione finta; restituisce le richieste ricevute.
-export async function mockApi(page, { status = 200, error } = {}) {
+// Intercetta il proxy di traduzione; restituisce i corpi delle richieste di traduzione ricevute.
+export async function mockApi(page, { translateStatus = 200, translateError, usage = USAGE } = {}) {
   const requests = [];
-  await page.route('https://api.anthropic.com/**', async (route) => {
+  await page.route(`${API_URL}/**`, async (route) => {
+    const req = route.request();
     const headers = {
       'access-control-allow-origin': '*',
-      'access-control-allow-headers': '*',
-      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-headers': 'content-type, x-password',
+      'access-control-allow-methods': 'GET, POST, OPTIONS',
     };
-    if (route.request().method() === 'OPTIONS') {
-      await route.fulfill({ status: 204, headers });
-      return;
-    }
-    const body = route.request().postDataJSON();
-    requests.push(body);
-    if (status !== 200) {
-      await route.fulfill({
+    const reply = (status, body) =>
+      route.fulfill({
         status,
         headers: { ...headers, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          type: 'error',
-          error: { type: error || 'authentication_error', message: 'errore di prova' },
-        }),
+        body: JSON.stringify(body),
       });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      headers: { ...headers, 'content-type': 'text/event-stream' },
-      body: sseBody(fakeReply(body)),
-    });
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (req.headers()['x-password'] !== PASSWORD) return reply(401, { error: 'parola_d_ordine' });
+    if (req.url().endsWith('/api/utilizzo')) return reply(200, usage);
+    const body = req.postDataJSON();
+    requests.push(body);
+    if (translateStatus !== 200) return reply(translateStatus, { error: translateError });
+    return reply(200, fakeTranslations(body));
   });
   return requests;
 }
 
-export async function prepare(page, file) {
+export async function login(page, password = PASSWORD) {
+  await page.getByLabel("Parola d'ordine", { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Accedi' }).click();
+}
+
+// Apre la pagina con il proxy finto, accede e carica il file; restituisce le richieste di traduzione.
+export async function prepare(page, file, mock = {}) {
+  const requests = await mockApi(page, mock);
   await page.goto('/');
-  await page.getByLabel('Chiave API Anthropic').fill('sk-ant-prova');
+  await login(page);
+  await page.getByText('Accesso consentito.').waitFor();
   if (file) await page.locator('#file').setInputFiles(`${FIXTURES}/${file}`);
+  return requests;
 }
 
 export async function translateAndDownload(page) {

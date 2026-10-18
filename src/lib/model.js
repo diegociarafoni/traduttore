@@ -1,5 +1,5 @@
-import { domInlineToMarkdown } from './inline.js';
-import { escapeText, unescapeText } from './tagged.js';
+import { domInlineToMarkdown, inlineToTagged, taggedToInline } from './inline.js';
+import { escapeText, stripTags } from './tagged.js';
 
 // Modello documento comune a tutti i formati:
 // { title, chapters: [{ title, blocks }] }
@@ -9,34 +9,38 @@ import { escapeText, unescapeText } from './tagged.js';
 // Restituisce i riferimenti a tutte le stringhe traducibili del documento.
 function textSlots(doc) {
   const slots = [];
-  const add = (obj, key) => {
-    if (typeof obj[key] === 'string' && obj[key].trim()) slots.push({ obj, key });
+  const add = (obj, key, plain) => {
+    if (typeof obj[key] === 'string' && obj[key].trim()) slots.push({ obj, key, plain: !!plain });
   };
   add(doc, 'title');
   for (const ch of doc.chapters) {
     add(ch, 'title');
     for (const b of ch.blocks) {
-      if (b.type === 'heading' || b.type === 'paragraph' || b.type === 'quote') add(b, 'text');
-      else if (b.type === 'list') b.items.forEach((_, i) => add(b.items, i));
-      else if (b.type === 'table') b.rows.forEach((row) => row.forEach((_, i) => add(row, i)));
+      if (b.type === 'heading' || b.type === 'paragraph' || b.type === 'quote') add(b, 'text', b.plain);
+      else if (b.type === 'list') b.items.forEach((_, i) => add(b.items, i, b.plain));
+      else if (b.type === 'table') b.rows.forEach((row) => row.forEach((_, i) => add(row, i, b.plain)));
     }
   }
   return slots;
 }
 
+// Segmenti a tag numerati; i testi Markdown portano la formattazione come tag.
 export function collectSegments(doc) {
-  return textSlots(doc).map(({ obj, key }) => escapeText(obj[key]));
+  return textSlots(doc).map(({ obj, key, plain }) => (plain ? escapeText(obj[key]) : inlineToTagged(obj[key]).segment));
 }
 
 export function applySegments(doc, translated) {
-  textSlots(doc).forEach(({ obj, key }, i) => {
-    if (translated[i] != null) obj[key] = unescapeText(translated[i]);
+  textSlots(doc).forEach(({ obj, key, plain }, i) => {
+    if (translated[i] == null) return;
+    obj[key] = plain ? stripTags(translated[i]) : taggedToInline(translated[i], inlineToTagged(obj[key]).map);
   });
   return doc;
 }
 
 export function documentText(doc) {
-  return collectSegments(doc).map(unescapeText).join('\n');
+  return textSlots(doc)
+    .map(({ obj, key }) => obj[key])
+    .join('\n');
 }
 
 const BLOCK_TAGS = new Set([

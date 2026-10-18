@@ -15,6 +15,7 @@ Ogni cartella di `src/` e di `src/lib/` ha qui il documento che la descrive. La 
 | Percorso             | Contenuto                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | `src/main.js`        | Interfaccia ([interfaccia.md](interfaccia.md))                                            |
+| `worker/`            | Proxy verso DeepL su Cloudflare Workers ([proxy.md](proxy.md))                            |
 | `tool/`              | Controlli di convenzioni, documentazione, licenze e dimensioni ([qualita.md](qualita.md)) |
 | `tests/unit/`        | Unit test ([sviluppo.md](sviluppo.md#test))                                               |
 | `tests/e2e/`         | Test end-to-end, accessibilità e schermate di riferimento                                 |

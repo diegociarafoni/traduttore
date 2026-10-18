@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = 4173;
+export const API_URL = 'https://proxy.traduttore.test';
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -22,5 +23,6 @@ export default defineConfig({
     port,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: { VITE_API_URL: API_URL },
   },
 });

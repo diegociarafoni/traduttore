@@ -36,6 +36,8 @@ jobs:
         run: npm run test:coverage
       - name: Build
         run: npm run build
+        env:
+          VITE_API_URL: https://proxy.traduttore.test
       - name: Dimensioni del sito
         run: node tool/check-bundle.mjs
 

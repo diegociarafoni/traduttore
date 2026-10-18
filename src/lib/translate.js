@@ -1,15 +1,19 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { collectIds, parseTagged, sameIds } from './tagged.js';
 import { t } from '../i18n/index.js';
 
-export const MODELS = [
-  { id: 'claude-opus-5-5', labelKey: 'model.opus', input: 4, output: 20 },
-  { id: 'claude-sonnet-5-5', labelKey: 'model.sonnet', input: 2, output: 10 },
-  { id: 'claude-haiku-5-5', labelKey: 'model.haiku', input: 0.1, output: 0.5 },
-];
+// Limiti del proxy (worker/src/index.js): 50 testi e 120 kB per richiesta.
+const MAX_BATCH_CHARS = 30000;
+const MAX_BATCH_SEGMENTS = 50;
+const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
 
-const MAX_BATCH_CHARS = 6000;
-const MAX_BATCH_SEGMENTS = 80;
+export class ServiceError extends Error {
+  constructor(code, status) {
+    super(code);
+    this.name = 'ServiceError';
+    this.code = code;
+    this.status = status;
+  }
+}
 
 // Segmenti composti solo da numeri, punteggiatura, simboli o tag non vengono inviati.
 export function needsTranslation(segment) {
@@ -17,34 +21,13 @@ export function needsTranslation(segment) {
   return /\p{L}/u.test(text);
 }
 
-export function buildSystemPrompt({ sourceLang, targetLang }) {
-  const source = sourceLang ? sourceLang.en : 'the language of the text (detect it automatically)';
-  return [
-    `You are a professional translator. Translate from ${source} into ${targetLang.en}.`,
-    'The user sends numbered segments wrapped in <s i="N">...</s>. They are consecutive pieces of the same document: use the surrounding segments as context so terminology and style stay consistent.',
-    'Rules:',
-    '- Reply only with the translated segments, in the same order, each wrapped in <s i="N">...</s> with the same N. Do not merge, split, skip or add segments.',
-    '- Numbered tags such as <1>, </1> and <2/> mark formatting. Keep every tag exactly once, unchanged, around the corresponding translated words; you may reorder them when the target grammar requires it.',
-    '- Keep the entities &amp; &lt; &gt; as they are.',
-    '- Keep Markdown inline syntax (**bold**, *italic*, `code`, [text](url), ![alt](url)) and translate only the visible text; never translate URLs or code.',
-    '- Preserve leading and trailing spaces, numbers, proper names and the register of the original.',
-    '- If a segment is already in the target language or must not be translated (code, identifiers), return it unchanged.',
-  ].join('\n');
+// DeepL accetta solo XML ben formato: i tag numerati <1> diventano <t1>.
+export function toDeeplXml(segment) {
+  return segment.replace(/<(\/?)(\d+)(\/?)>/g, '<$1t$2$3>');
 }
 
-export function formatBatch(segments) {
-  return segments.map((s, i) => `<s i="${i + 1}">${s}</s>`).join('\n');
-}
-
-export function parseBatch(text, expected) {
-  const out = new Array(expected).fill(null);
-  const re = /<s i="(\d+)">([\s\S]*?)<\/s>/g;
-  let m;
-  while ((m = re.exec(text))) {
-    const i = Number(m[1]) - 1;
-    if (i >= 0 && i < expected && out[i] === null) out[i] = m[2];
-  }
-  return out;
+export function fromDeeplXml(text) {
+  return text.replace(/<(\/?)t(\d+)\s*(\/?)>/g, '<$1$2$3>');
 }
 
 export function makeBatches(items, maxChars = MAX_BATCH_CHARS, maxSegments = MAX_BATCH_SEGMENTS) {
@@ -71,17 +54,16 @@ function tagsPreserved(source, translated) {
   return sameIds(collectIds(src), collectIds(dst));
 }
 
-export function estimateCost(segments, modelId) {
-  const model = MODELS.find((m) => m.id === modelId) || MODELS[0];
-  const chars = segments.filter(needsTranslation).reduce((n, s) => n + s.length, 0);
-  const tokens = Math.ceil(chars / 3.5);
-  const usd = (tokens * model.input + tokens * 1.3 * model.output) / 1e6;
-  return { chars, tokens, usd };
+// Caratteri fatturati da DeepL: il testo visibile, senza tag.
+export function countCharacters(segments) {
+  return segments
+    .filter(needsTranslation)
+    .reduce((n, s) => n + s.replace(/<\/?\d+\/?>/g, '').replace(/&(amp|lt|gt);/g, '&').length, 0);
 }
 
 // Traduce un elenco di segmenti con una funzione `translateBatch(segments) => string[]`.
 // Gestisce deduplicazione, lotti, parallelismo, controllo dei tag e ritentativi.
-export async function translateSegments(segments, translateBatch, { concurrency = 3, onProgress, signal } = {}) {
+export async function translateSegments(segments, translateBatch, { concurrency = 2, onProgress, signal } = {}) {
   const result = segments.slice();
   const unique = new Map();
   segments.forEach((s, i) => {
@@ -96,16 +78,15 @@ export async function translateSegments(segments, translateBatch, { concurrency 
 
   const runBatch = async (batch, depth = 0) => {
     if (signal?.aborted) throw new DOMException(t('error.aborted'), 'AbortError');
-    const texts = batch.map((b) => b.text);
-    const translated = await translateBatch(texts);
+    const translated = await translateBatch(batch.map((b) => b.text));
     const missing = [];
     batch.forEach((item, i) => {
-      const t = translated[i];
+      const out = translated[i];
       const lastTry = depth >= 3;
-      if (t == null || (!lastTry && /<\/?\d+\/?>/.test(item.text) && !tagsPreserved(item.text, t))) {
+      if (out == null || (!lastTry && /<\/?\d+\/?>/.test(item.text) && !tagsPreserved(item.text, out))) {
         missing.push(item);
       } else {
-        item.translation = t;
+        item.translation = out;
       }
     });
     if (missing.length) {
@@ -138,52 +119,66 @@ export async function translateSegments(segments, translateBatch, { concurrency 
   return result;
 }
 
-export function createAnthropicTranslator({ apiKey, model, sourceLang, targetLang, signal, fetch }) {
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 4, ...(fetch ? { fetch } : {}) });
-  const system = buildSystemPrompt({ sourceLang, targetLang });
-  const supportsFallback = model !== 'claude-haiku-5-5';
-  let useFallback = supportsFallback;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const request = async (texts) => {
-    const params = {
-      model,
-      max_tokens: 32000,
-      system,
-      output_config: { effort: 'low' },
-      messages: [{ role: 'user', content: formatBatch(texts) }],
-    };
-    if (useFallback) {
+export function createClient({ apiUrl, password, fetch = globalThis.fetch, sleep = wait, retries = 3 }) {
+  const base = String(apiUrl).replace(/\/+$/, '');
+  const call = async (path, init = {}, signal) => {
+    for (let attempt = 0; ; attempt++) {
+      let res;
       try {
-        return await client.beta.messages
-          .stream({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }, { signal })
-          .finalMessage();
+        res = await fetch(`${base}${path}`, {
+          ...init,
+          signal,
+          headers: { ...init.headers, 'x-password': password },
+        });
       } catch (err) {
-        if (!(err instanceof Anthropic.BadRequestError) || !/fallback/i.test(err.message)) throw err;
-        useFallback = false;
+        if (err?.name === 'AbortError') throw err;
+        throw new ServiceError('connessione');
       }
+      if (res.ok) return res.json();
+      const body = await res.json().catch(() => ({}));
+      // La quota esaurita non si libera ritentando: si interrompe subito.
+      if (RETRY_STATUS.has(res.status) && body.error !== 'quota' && attempt < retries) {
+        await sleep(1000 * 2 ** attempt);
+        continue;
+      }
+      throw new ServiceError(body.error || 'servizio', res.status);
     }
-    return client.messages.stream(params, { signal }).finalMessage();
   };
 
-  return async (texts) => {
-    const message = await request(texts);
-    if (message.stop_reason === 'refusal') {
-      throw new Error(t('error.refusal'));
-    }
-    const text = message.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-    return parseBatch(text, texts.length);
+  return {
+    usage: (signal) => call('/api/utilizzo', {}, signal),
+    translator({ sourceLang, targetLang, signal }) {
+      return async (texts) => {
+        const body = { texts: texts.map(toDeeplXml), target: targetLang.deepl.target };
+        if (sourceLang) body.source = sourceLang.deepl.source;
+        const data = await call(
+          '/api/traduci',
+          { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
+          signal,
+        );
+        return texts.map((_, i) => (data.translations?.[i] ? fromDeeplXml(data.translations[i].text) : null));
+      };
+    },
   };
 }
 
-export function describeApiError(err) {
-  if (err?.name === 'AbortError' || err instanceof Anthropic.APIUserAbortError) return t('error.aborted');
-  if (err instanceof Anthropic.AuthenticationError) return t('error.auth');
-  if (err instanceof Anthropic.PermissionDeniedError) return t('error.permission');
-  if (err instanceof Anthropic.RateLimitError) return t('error.rateLimit');
-  if (err instanceof Anthropic.APIConnectionError) return t('error.connection');
-  if (err instanceof Anthropic.APIError) return t('error.api', { status: err.status ?? 'n/d', message: err.message });
+const ERRORS = {
+  parola_d_ordine: () => t('error.password'),
+  quota: () => t('error.quota'),
+  troppe_richieste: () => t('error.rateLimit'),
+  connessione: () => t('error.connection'),
+  configurazione: () => t('error.config'),
+  troppo_grande: () => t('error.tooLarge'),
+};
+
+export function describeError(err) {
+  if (err?.name === 'AbortError') return t('error.aborted');
+  if (err instanceof ServiceError) {
+    return (
+      (Object.hasOwn(ERRORS, err.code) && ERRORS[err.code]()) || t('error.service', { status: err.status ?? 'n/d' })
+    );
+  }
   return err?.message || String(err);
 }

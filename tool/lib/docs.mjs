@@ -1,4 +1,4 @@
-export const CHECKED_ROOTS = ['src', 'tests', 'tool', 'docs', 'public', '.github', '.claude'];
+export const CHECKED_ROOTS = ['src', 'worker', 'tests', 'tool', 'docs', 'public', '.github', '.claude'];
 export const INDEX_PATH = 'docs/README.md';
 export const MAP_PATH = 'docs/mappa-del-codice.md';
 

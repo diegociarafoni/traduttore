@@ -15,7 +15,7 @@ Quando ingresso e uscita sono docx o epub, il file originale non viene ricostrui
 - **Word**: si traducono i paragrafi di `word/document.xml`, intestazioni, piè di pagina, note. I _run_ consecutivi con la stessa formattazione si uniscono; quelli con formattazione diversa diventano tag numerati (`<1>…</1>`), così il grassetto resta sulle parole giuste anche se cambia l'ordine. Si aggiorna la lingua di correzione (`w:lang`).
 - **EPUB**: si traducono i blocchi «foglia» di ogni pagina XHTML (paragrafi, titoli, voci di elenco, celle…), il titolo della pagina, le voci di `toc.ncx` e il titolo nei metadati. Gli elementi in linea (`em`, `strong`, `a`, `span`, `br`, `img`) diventano tag numerati e vengono ricostruiti clonando gli originali, con attributi, classi e link. `code` e `pre` non si traducono. Si aggiornano `lang` e `dc:language`.
 
-Se il modello perde o inventa un tag anche dopo i ritentativi, il paragrafo viene scritto come testo semplice nel primo elemento: il contenuto resta corretto, si perde solo la formattazione interna di quel paragrafo.
+Se DeepL perde o inventa un tag anche dopo i ritentativi, il paragrafo viene scritto come testo semplice nel primo elemento: il contenuto resta corretto, si perde solo la formattazione interna di quel paragrafo.
 
 ## Limiti noti
 

@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' __API_ORIGIN__; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>Traduttore</title>
     <link
@@ -23,26 +23,16 @@
 
       <section class="card" aria-labelledby="sec-key">
         <h2 id="sec-key" data-i18n="key.section"></h2>
-        <div class="row">
+        <form id="login" class="row">
           <label class="grow">
             <span data-i18n="key.label"></span>
-            <input id="api-key" type="password" autocomplete="off" placeholder="sk-ant-..." />
+            <input id="password" type="password" autocomplete="current-password" required />
           </label>
-          <label>
-            <span data-i18n="key.model"></span>
-            <select id="model"></select>
-          </label>
-        </div>
+          <button id="login-button" type="submit" class="secondary" data-i18n="key.submit"></button>
+        </form>
         <label class="check"><input id="remember" type="checkbox" /> <span data-i18n="key.remember"></span></label>
-        <p class="hint">
-          <span data-i18n="key.hint"></span>
-          <a
-            href="https://console.anthropic.com/settings/keys"
-            target="_blank"
-            rel="noopener"
-            data-i18n="key.hintLink"
-          ></a>
-        </p>
+        <p id="access" role="status" aria-live="polite"></p>
+        <p class="hint" data-i18n="key.hint"></p>
       </section>
 
       <section class="card" aria-labelledby="sec-file">

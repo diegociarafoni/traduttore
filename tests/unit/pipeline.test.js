@@ -176,7 +176,7 @@ describe('RNF-03 testi applicati alla pagina', () => {
     document.body.innerHTML = '<p data-i18n="run.translate"></p><input data-i18n-placeholder="key.label">';
     translateDom(document);
     expect(document.querySelector('p').textContent).toBe('Traduci');
-    expect(document.querySelector('input').getAttribute('placeholder')).toBe('Chiave API Anthropic');
+    expect(document.querySelector('input').getAttribute('placeholder')).toBe("Parola d'ordine");
     expect(document.title).toBe(t('app.title'));
   });
 });

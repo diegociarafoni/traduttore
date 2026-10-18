@@ -26,6 +26,6 @@ La logica è tutto ciò che sta in `src/lib/` e `src/i18n/`; l'interfaccia (`src
 ## Test deterministici
 
 - Nessuna attesa a tempo fisso: le asserzioni di Playwright e Vitest aspettano la condizione e scadono con un messaggio che dice cosa mancava.
-- Nessuna rete: l'API è sempre simulata, nei unit test con un `fetch` finto e negli end-to-end con `page.route`.
+- Nessuna rete: l'API è sempre simulata, nei unit test con un `fetch` finto (anche per il proxy verso DeepL) e negli end-to-end con `page.route`.
 - Le schermate usano un carattere incluso nel repository, non quelli del sistema.
 - Un test instabile si corregge, non si rilancia.
