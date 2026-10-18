@@ -47,6 +47,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
+          # Niente cache delle dipendenze nella pubblicazione: una cache alterata finirebbe nel sito o nel proxy.
+          package-manager-cache: false
       # Il proxy usa l'SDK di Anthropic, che wrangler include nel pacchetto da node_modules.
       - run: npm ci --omit=dev --no-audit --no-fund
       # Si caricano i segreti valorizzati e si tolgono le chiavi rimosse dal repository, così il Worker
@@ -89,6 +91,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
+          # Niente cache delle dipendenze nella pubblicazione: una cache alterata finirebbe nel sito o nel proxy.
+          package-manager-cache: false
       - run: npm ci --no-audit --no-fund
       - run: npm run build
         env:
