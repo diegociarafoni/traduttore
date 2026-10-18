@@ -135,9 +135,6 @@ export function htmlToBlocks(root) {
         continue;
       } else if (BLOCK_TAGS.has(tag) && hasBlockChild(node)) {
         walk(node);
-      } else if (BLOCK_TAGS.has(tag)) {
-        const text = clean(domInlineToMarkdown(node));
-        if (text) blocks.push({ type: 'paragraph', text });
       } else {
         const text = clean(domInlineToMarkdown(node));
         if (text) blocks.push({ type: 'paragraph', text });

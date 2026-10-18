@@ -91,23 +91,30 @@ export function splitLong(text, max = MAX_SEGMENT_CHARS) {
 // Traduce un elenco di segmenti con una funzione `translateBatch(segments) => string[]`.
 // Gestisce deduplicazione, lotti, parallelismo, controllo dei tag e ritentativi.
 // I segmenti più lunghi di MAX_SEGMENT_CHARS si traducono a pezzi (senza tag) e si ricompongono.
+// I segmenti che restano senza traduzione dopo i ritentativi rimangono nella lingua originale
+// e vengono contati in `onUntranslated(n)`, perché l'utente possa saperlo.
 export async function translateSegments(segments, translateBatch, options = {}) {
   const pieces = segments.map((s) =>
     s.length > MAX_SEGMENT_CHARS && needsTranslation(s) ? splitLong(s.replace(/<\/?\d+\/?>/g, '')) : [s],
   );
-  const flat = await translateUnits(pieces.flat(), translateBatch, options);
+  const { result: flat, missing } = await translateUnits(pieces.flat(), translateBatch, options);
   let k = 0;
-  return pieces.map((parts) =>
-    parts
+  let untranslated = 0;
+  const out = pieces.map((parts) => {
+    if (parts.some((_, j) => missing.has(k + j))) untranslated++;
+    return parts
       .map((part) => {
-        const out = flat[k++];
+        const text = flat[k++];
         const trailing = part.match(/\s*$/)[0];
-        return parts.length > 1 && !/\s$/.test(out) ? out + trailing : out;
+        return parts.length > 1 && !/\s$/.test(text) ? text + trailing : text;
       })
-      .join(''),
-  );
+      .join('');
+  });
+  if (untranslated) options.onUntranslated?.(untranslated);
+  return out;
 }
 
+// Restituisce le traduzioni e gli indici dei segmenti rimasti senza traduzione.
 async function translateUnits(segments, translateBatch, { concurrency = 2, onProgress, signal } = {}) {
   const result = segments.slice();
   const unique = new Map();
@@ -165,11 +172,14 @@ async function translateUnits(segments, translateBatch, { concurrency = 2, onPro
   await Promise.all(workers);
   onProgress?.(total, total);
 
+  const missing = new Set();
   for (const item of items) {
-    if (item.translation == null) continue;
-    for (const i of unique.get(item.text)) result[i] = item.translation;
+    for (const i of unique.get(item.text)) {
+      if (item.translation == null) missing.add(i);
+      else result[i] = item.translation;
+    }
   }
-  return result;
+  return { result, missing };
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

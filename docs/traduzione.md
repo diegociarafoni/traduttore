@@ -17,7 +17,7 @@ Le lingue disponibili sono quelle supportate da DeepL (`src/lib/languages.js`); 
 
 La formattazione in linea viaggia come tag numerati (`Ciao <1>mondo</1><2/>`, vedi `src/lib/tagged.js`), sia nei percorsi sul posto sia nelle conversioni: in queste il Markdown in linea (`**grassetto**`, `*corsivo*`, link) diventa tag con `inlineToTagged` e torna Markdown con `taggedToInline` (`src/lib/inline.js`). Codice in linea e immagini diventano tag vuoti, così DeepL non li traduce. I testi semplici (txt, pdf) viaggiano senza tag.
 
-DeepL accetta solo XML ben formato, quindi prima dell'invio `<1>` diventa `<t1>` (`toDeeplXml`) e al ritorno si fa il contrario (`fromDeeplXml`); la richiesta usa `tag_handling: xml`. Il testo è sempre escapato (`&amp;`, `&lt;`, `&gt;`). Alla risposta si verifica che ogni segmento contenga gli stessi tag dell'originale; i segmenti mancanti o con tag diversi vengono richiesti di nuovo, prima dividendo il lotto e poi singolarmente.
+DeepL accetta solo XML ben formato, quindi prima dell'invio `<1>` diventa `<t1>` (`toDeeplXml`) e al ritorno si fa il contrario (`fromDeeplXml`); la richiesta usa `tag_handling: xml`. Il testo è sempre escapato (`&amp;`, `&lt;`, `&gt;`). Alla risposta si verifica che ogni segmento contenga gli stessi tag dell'originale; i segmenti mancanti o con tag diversi vengono richiesti di nuovo, prima dividendo il lotto e poi singolarmente. Un segmento che resta senza risposta anche dopo l'ultimo tentativo rimane nella lingua originale: `translateSegments` li conta con `onUntranslated` e l'interfaccia, al termine, avvisa quanti sono (RF-20).
 
 ## Rilevamento della lingua
 

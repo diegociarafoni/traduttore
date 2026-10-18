@@ -19,6 +19,14 @@ const store = {
       return null;
     }
   },
+  // Un valore danneggiato non deve impedire l'avvio della pagina.
+  getJson(k) {
+    try {
+      return JSON.parse(store.get(k)) ?? {};
+    } catch {
+      return {};
+    }
+  },
   set(k, v) {
     try {
       if (v == null) localStorage.removeItem(k);
@@ -39,6 +47,7 @@ const state = {
   usage: null,
   controller: null,
   url: null,
+  loading: null,
 };
 
 function option(value, label) {
@@ -58,7 +67,7 @@ function setup() {
   $('target').value = 'it';
   for (const [k, f] of Object.entries(FORMATS)) $('out-format').append(option(k, t(f.labelKey)));
 
-  const prefs = JSON.parse(store.get(PREFS_STORAGE) || '{}');
+  const prefs = store.getJson(PREFS_STORAGE);
   if (prefs.target && byCode(prefs.target)) $('target').value = prefs.target;
   $('target').addEventListener('change', () => {
     store.set(PREFS_STORAGE, JSON.stringify({ target: $('target').value }));
@@ -75,6 +84,7 @@ function setup() {
     state.client = null;
     state.usage = null;
     $('access').textContent = '';
+    $('password').removeAttribute('aria-invalid');
     updateButton();
   });
   $('remember').addEventListener('change', () => {
@@ -88,25 +98,29 @@ function setup() {
   }
 
   const drop = $('drop');
+  // Durante la traduzione il documento non si cambia: il risultato riguarderebbe il file precedente.
+  const pickFile = () => !state.controller && $('file').click();
+  drop.addEventListener('click', pickFile);
   drop.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
       e.preventDefault();
-      $('file').click();
+      pickFile();
     }
   });
   drop.addEventListener('dragover', (e) => {
     e.preventDefault();
-    drop.classList.add('over');
+    if (!state.controller) drop.classList.add('over');
   });
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
   drop.addEventListener('drop', (e) => {
     e.preventDefault();
     drop.classList.remove('over');
-    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+    if (!state.controller && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
   });
   $('file').addEventListener('change', () => $('file').files[0] && loadFile($('file').files[0]));
   $('translate').addEventListener('click', run);
   $('cancel').addEventListener('click', () => state.controller?.abort());
+  updateButton();
 }
 
 async function login() {
@@ -123,6 +137,7 @@ async function login() {
     state.client = client;
     $('access').className = 'ok';
     $('access').textContent = t('access.ok');
+    $('password').removeAttribute('aria-invalid');
     store.set(PASSWORD_STORAGE, $('remember').checked ? password : null);
   } catch (err) {
     if ($('password').value !== password) return;
@@ -130,6 +145,7 @@ async function login() {
     state.usage = null;
     $('access').className = 'error';
     $('access').textContent = describeError(err);
+    $('password').setAttribute('aria-invalid', 'true');
     // Si dimentica la parola d'ordine solo se è errata, non per un problema di rete o del servizio.
     if (err?.code === 'parola_d_ordine') store.set(PASSWORD_STORAGE, null);
   }
@@ -137,19 +153,33 @@ async function login() {
   updateButton();
 }
 
-function setStatus(text, kind = '') {
+// `info` marca gli avvisi derivati dal documento, che showInfo rimuove quando non valgono più;
+// gli esiti della traduzione restano finché l'utente non agisce.
+function setStatus(text, kind = '', { info = false } = {}) {
   $('status').textContent = text;
   $('status').className = kind;
+  $('status').toggleAttribute('data-info', info);
 }
 
+// Abilita Traduci solo con accesso e documento, e spiega cosa manca; durante la traduzione
+// blocca documento e opzioni, che non avrebbero effetto sul lavoro in corso.
 function updateButton() {
-  $('translate').disabled = !(state.segments.length && state.client && !state.controller);
+  const running = !!state.controller;
+  let missing = '';
+  if (!state.client && !state.segments.length) missing = t('run.needBoth');
+  else if (!state.client) missing = t('run.needLogin');
+  else if (!state.segments.length) missing = t('run.needFile');
+  $('translate').disabled = running || !!missing;
+  $('translate-hint').textContent = running ? '' : missing;
+  $('file').disabled = running;
+  $('drop').setAttribute('aria-disabled', String(running));
+  for (const id of ['source', 'target', 'out-format']) $(id).disabled = running;
 }
 
 function updateFormatNote() {
   const out = $('out-format').value;
   const notes = [];
-  if (state.format && out === state.format && (out === 'docx' || out === 'epub')) {
+  if (state.format && out === state.format && FORMATS[out].inPlace) {
     notes.push(t('note.inPlace'));
   } else if (state.format && out !== state.format) {
     notes.push(t('note.convert'));
@@ -185,13 +215,15 @@ function showInfo() {
     }),
   );
   info.hidden = false;
+  updateFormatNote();
+  // Gli avvisi sul documento non coprono gli esiti di analisi e traduzione ancora visibili.
+  if ($('status').textContent && !$('status').hasAttribute('data-info')) return;
   const source = $('source').value ? byCode($('source').value) : state.detected;
   if (state.usage?.limit && chars > state.usage.limit - state.usage.used) {
-    setStatus(t('info.overQuota'), 'warn');
+    setStatus(t('info.overQuota'), 'warn', { info: true });
   } else if (source && source.code === $('target').value) {
-    setStatus(t('info.sameLanguage', { lang: source.name }), 'warn');
-  } else if ($('status').className === 'warn') setStatus('');
-  updateFormatNote();
+    setStatus(t('info.sameLanguage', { lang: source.name }), 'warn', { info: true });
+  } else setStatus('');
 }
 
 async function loadFile(file) {
@@ -201,6 +233,9 @@ async function loadFile(file) {
     setStatus(t('file.unsupported'), 'error');
     return;
   }
+  // Se nel frattempo si carica un altro file, l'analisi di questo non deve sovrascriverlo.
+  const token = Symbol(file.name);
+  state.loading = token;
   state.file = file;
   state.format = format;
   state.segments = [];
@@ -210,13 +245,16 @@ async function loadFile(file) {
   setStatus(t('file.analyzing'));
   updateButton();
   try {
-    state.buffer = await file.arrayBuffer();
-    const { segments } = await inspectFile(state.buffer, format, file.name);
+    const buffer = await file.arrayBuffer();
+    const { segments } = await inspectFile(buffer, format, file.name);
+    if (state.loading !== token) return;
     if (!segments.length) throw new Error(t('file.empty'));
+    state.buffer = buffer;
     state.segments = segments;
     state.detected = detectLanguage(segments);
     setStatus('');
   } catch (err) {
+    if (state.loading !== token) return;
     state.segments = [];
     setStatus(err.message || String(err), 'error');
   }
@@ -244,6 +282,7 @@ async function run() {
   $('progress').value = 0;
   $('progress-text').textContent = '';
   setStatus(t('run.inProgress', { lang: target.name }));
+  let untranslated = 0;
 
   const translator = state.client.translator({ sourceLang: source, targetLang: target, signal: controller.signal });
   const translateAll = (segments) =>
@@ -253,6 +292,7 @@ async function run() {
         $('progress').value = total ? done / total : 1;
         $('progress-text').textContent = t('run.progress', { done, total });
       },
+      onUntranslated: (n) => (untranslated += n),
     });
 
   try {
@@ -270,7 +310,9 @@ async function run() {
     a.download = filename;
     a.textContent = t('run.download', { file: filename });
     a.hidden = false;
-    setStatus(t('run.done'), 'ok');
+    if (untranslated) setStatus(t('run.untranslated', { count: nf(untranslated) }), 'warn');
+    else setStatus(t('run.done'), 'ok');
+    a.focus();
     state.client
       .usage()
       .then((u) => {

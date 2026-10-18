@@ -104,6 +104,29 @@ describe('RF-05 translateSegments', () => {
     expect(progress.at(-1)).toEqual([2, 2]);
   });
 
+  it('RF-20 segnala quanti segmenti restano nella lingua originale', async () => {
+    const untranslated = [];
+    const batch = async (texts) => texts.map((t) => (t === 'due' ? null : `T:${t}`));
+    const out = await translateSegments(['uno', 'due', 'due'], batch, { onUntranslated: (n) => untranslated.push(n) });
+    expect(out).toEqual(['T:uno', 'due', 'due']);
+    expect(untranslated).toEqual([2]);
+  });
+
+  it('RF-20 conta una volta sola un segmento lungo tradotto a pezzi', async () => {
+    const long = `${'Parola '.repeat(4000)}fine.\n${'Altra '.repeat(3000)}`;
+    const untranslated = [];
+    await translateSegments([long, 'breve'], async (texts) => texts.map((t) => (t === 'breve' ? 'corto' : null)), {
+      onUntranslated: (n) => untranslated.push(n),
+    });
+    expect(untranslated).toEqual([1]);
+  });
+
+  it('RF-20 non segnala nulla se tutti i segmenti sono tradotti', async () => {
+    const untranslated = [];
+    await translateSegments(['uno'], async (t) => t, { onUntranslated: (n) => untranslated.push(n) });
+    expect(untranslated).toEqual([]);
+  });
+
   it('RF-11 si interrompe se annullato', async () => {
     const c = new AbortController();
     c.abort();
