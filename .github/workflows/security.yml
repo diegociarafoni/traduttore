@@ -1,0 +1,87 @@
+name: Sicurezza
+
+# Scansione completa su main e ogni settimana; sulle PR solo quando cambiano
+# dipendenze o workflow. Gitleaks sui commit di ogni PR
+# è in conventions.yml.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md', 'LICENSE']
+  pull_request:
+    paths:
+      - 'package*.json'
+      - '.github/**'
+      - 'tool/policy.json'
+      - '.gitleaks.toml'
+  schedule:
+    # Ogni lunedì: nuove vulnerabilità note anche senza modifiche al codice.
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scan:
+    name: Trivy, OSV-Scanner, Gitleaks, zizmor e SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/install-scanners
+      - run: mkdir -p build/security
+
+      - name: Trivy (vulnerabilità, segreti, configurazioni)
+        run: |
+          trivy fs --quiet --scanners vuln,secret,misconfig \
+            --severity HIGH,CRITICAL --exit-code 1 \
+            --format sarif --output build/security/trivy.sarif .
+
+      - name: OSV-Scanner (dipendenze npm)
+        if: '!cancelled()'
+        run: |
+          osv-scanner scan source --recursive --format sarif \
+            --output-file build/security/osv.sarif .
+
+      - name: Gitleaks (segreti in tutta la cronologia)
+        if: '!cancelled()'
+        run: |
+          gitleaks git --redact --no-banner \
+            --report-format sarif --report-path build/security/gitleaks.sarif .
+
+      - name: zizmor (sicurezza dei workflow GitHub Actions)
+        if: '!cancelled()'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pipx run zizmor==1.30.1 --min-severity medium --format sarif . \
+            > build/security/zizmor.sarif
+
+      - name: SBOM CycloneDX
+        if: always()
+        run: trivy fs --quiet --format cyclonedx --output build/security/sbom.cdx.json .
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: security-reports
+          path: build/security/
+
+      # Il code scanning sui repository privati richiede GitHub Code Security:
+      # senza, il caricamento fallisce ma i report restano negli artefatti.
+      - name: Caricamento SARIF nel code scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: build/security

@@ -1,0 +1,30 @@
+version: 2
+# Una PR a settimana per ecosistema, con tutti gli aggiornamenti raggruppati. Gli avvisi di
+# sicurezza restano PR separate e immediate.
+# cooldown: si propongono solo versioni pubblicate da almeno 7 giorni, per non
+# installare un pacchetto compromesso nelle ore prima che venga ritirato.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      npm:
+        patterns: ['*']
+  - package-ecosystem: github-actions
+    directories: [/, /.github/actions/*]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ['*']
