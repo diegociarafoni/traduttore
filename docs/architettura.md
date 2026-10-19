@@ -3,7 +3,7 @@
 ## Stack
 
 - Sito statico in JavaScript (moduli ES) costruito con [Vite](https://vite.dev); nessun server applicativo.
-- Traduzione con l'API di [DeepL](https://developers.deepl.com), raggiunta tramite un proxy su Cloudflare Workers (`worker/`) che custodisce la chiave e controlla la parola d'ordine ([proxy.md](proxy.md)).
+- Traduzione con l'API di [DeepL](https://developers.deepl.com) o di [Claude](https://platform.claude.com/docs), raggiunte tramite un proxy su Cloudflare Workers (`worker/`) che custodisce la chiave e controlla la parola d'ordine ([proxy.md](proxy.md)).
 - Librerie per i formati: `marked` (Markdown), `mammoth` e `docx` (Word), `jszip` (EPUB e pacchetti Office), `pdfjs-dist` (lettura PDF), `jspdf` con i caratteri DejaVu (scrittura PDF), `franc-min` (rilevamento della lingua).
 
 ## Componenti
@@ -19,7 +19,7 @@
 | `src/lib/inline.js`    | Formattazione in linea in stile Markdown                              |
 | `src/lib/detect.js`    | Rilevamento locale della lingua                                       |
 | `src/i18n/`            | Catalogo dei testi dell'interfaccia                                   |
-| `worker/src/index.js`  | Proxy verso DeepL: parola d'ordine, limiti, CORS                      |
+| `worker/src/index.js`  | Proxy verso DeepL e Claude: parola d'ordine, limiti, CORS             |
 
 ## Modello documento
 

@@ -19,6 +19,7 @@
     "worker": "npx --yes wrangler@4.147.0 dev -c worker/wrangler.toml"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "dejavu-fonts-ttf": "^2.37.3",
     "docx": "^9.12.0",
     "franc-min": "^6.2.0",

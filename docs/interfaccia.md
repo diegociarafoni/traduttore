@@ -2,9 +2,9 @@
 
 Una sola pagina in tre passi, più l'area delle azioni.
 
-1. **Accesso al servizio**: parola d'ordine (campo nascosto), pulsante **Accedi** e casella «Memorizza la parola d'ordine in questo browser». L'accesso si verifica subito chiedendo al proxy la quota DeepL; l'esito compare sotto il campo.
-2. **Documento**: area in cui trascinare il file o aprirlo (anche da tastiera con Invio o Spazio). Dopo l'analisi compaiono nome, formato, lingua rilevata, caratteri da tradurre e, dopo l'accesso, la quota DeepL residua del mese. Se il documento supera la quota compare un avviso.
-3. **Opzioni di traduzione**: lingua di origine («Rilevamento automatico» predefinito), lingua di destinazione (italiano predefinito, l'ultima scelta viene ricordata), formato di uscita (quello del file caricato). Una nota spiega cosa si conserva: tutto nei percorsi sul posto, la struttura nelle conversioni, solo il testo dal PDF.
+1. **Accesso al servizio**: parola d'ordine (campo nascosto), pulsante **Accedi** e casella «Memorizza la parola d'ordine in questo browser». L'accesso si verifica subito chiedendo al proxy i motori disponibili e la quota DeepL; l'esito compare sotto il campo.
+2. **Documento**: area in cui trascinare il file o aprirlo (anche da tastiera con Invio o Spazio). Dopo l'analisi compaiono nome, formato, lingua rilevata, caratteri da tradurre e, dopo l'accesso e con DeepL come motore, la quota DeepL residua del mese. Se il documento supera la quota compare un avviso.
+3. **Opzioni di traduzione**: motore di traduzione (DeepL o Claude, solo se il proxy li offre entrambi; l'ultima scelta viene ricordata), lingua di origine («Rilevamento automatico» predefinito), lingua di destinazione (italiano predefinito, l'ultima scelta viene ricordata), formato di uscita (quello del file caricato). Una nota spiega cosa si conserva: tutto nei percorsi sul posto, la struttura nelle conversioni, solo il testo dal PDF.
 
 Il pulsante **Traduci** è attivo quando ci sono un documento con testo e un accesso verificato; finché manca qualcosa, una riga sotto il pulsante (collegata con `aria-describedby`) dice quale passo completare (RF-21). Durante la traduzione compaiono la barra di avanzamento (segmenti tradotti sul totale) e **Annulla**, mentre documento e opzioni restano bloccati perché non avrebbero effetto sul lavoro in corso. Al termine il collegamento **Scarica** offre il file `<nome>.<lingua>.<estensione>` e riceve il focus; se alcuni segmenti sono rimasti nella lingua originale, un avviso ne indica il numero (RF-20).
 

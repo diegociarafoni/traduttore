@@ -203,7 +203,8 @@ select:disabled {
   flex: 1 1 200px;
 }
 
-#progress-wrap[hidden] {
+#progress-wrap[hidden],
+#engine-field[hidden] {
   display: none;
 }
 

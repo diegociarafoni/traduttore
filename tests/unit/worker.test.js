@@ -1,6 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import worker, { LIMITS, deeplHost, handle, samePassword, validateTranslation } from '../../worker/src/index.js';
+import worker, {
+  CLAUDE_MODEL,
+  LIMITS,
+  deeplHost,
+  handle,
+  samePassword,
+  validateTranslation,
+} from '../../worker/src/index.js';
 
 const ORIGIN = 'https://diegociarafoni.github.io';
 const ENV = { DEEPL_KEY: 'chiave:fx', PASSWORD: 'segreta', ALLOWED_ORIGINS: `${ORIGIN}, http://localhost:5173` };
@@ -78,7 +85,7 @@ describe('RF-05 RF-10 inoltro a DeepL', () => {
   it('restituisce caratteri usati e limite mensile', async () => {
     const deepl = vi.fn(async () => json({ character_count: 10, character_limit: 500000 }));
     const res = await handle(request('/api/utilizzo'), ENV, deepl);
-    expect(await res.json()).toEqual({ used: 10, limit: 500000 });
+    expect(await res.json()).toEqual({ engines: ['deepl'], used: 10, limit: 500000 });
     expect(res.headers.get('cache-control')).toBe('no-store');
   });
 
@@ -110,6 +117,7 @@ describe('RNF-01 limiti e origini consentite', () => {
     expect(validateTranslation({ texts: [1], target: 'IT' })).toBe('texts');
     expect(validateTranslation({ texts: ['a'], target: 'italiano' })).toBe('target');
     expect(validateTranslation({ texts: ['a'], target: 'IT', source: 'x' })).toBe('source');
+    expect(validateTranslation({ ...translateBody, engine: 'altro' })).toBe('engine');
   });
 
   it('respinge corpi non validi o troppo grandi', async () => {
@@ -158,5 +166,145 @@ describe('RNF-01 limiti e origini consentite', () => {
   it('espone il gestore predefinito per Cloudflare', async () => {
     const res = await worker.fetch(request('/api/utilizzo', { password: 'x' }), ENV);
     expect(res.status).toBe(401);
+  });
+});
+
+// Risposta dell'API Messages di Claude con un unico blocco di testo.
+function claudeMessage(text, stopReason = 'end_turn') {
+  const message = {
+    id: 'msg_1',
+    type: 'message',
+    role: 'assistant',
+    model: CLAUDE_MODEL,
+    content: [{ type: 'text', text }],
+    stop_reason: stopReason,
+    stop_sequence: null,
+    usage: { input_tokens: 1, output_tokens: 1 },
+  };
+  return new Response(JSON.stringify(message), { status: 200, headers: { 'content-type': 'application/json' } });
+}
+
+const CLAUDE_ENV = { ANTHROPIC_API_KEY: 'sk-ant-prova', PASSWORD: 'segreta', ALLOWED_ORIGINS: ORIGIN };
+const claudeError = (status) => async () =>
+  new Response(JSON.stringify({ type: 'error', error: { type: 'errore', message: 'x' } }), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+
+describe('RF-22 motore Claude', () => {
+  it('elenca i motori disponibili e la quota DeepL', async () => {
+    const deepl = vi.fn(async () => json({ character_count: 10, character_limit: 500000 }));
+    const res = await handle(request('/api/utilizzo'), { ...ENV, ...CLAUDE_ENV }, deepl);
+    expect(await res.json()).toEqual({ engines: ['deepl', 'claude'], used: 10, limit: 500000 });
+  });
+
+  it('esclude DeepL se rifiuta la chiave ma Claude è configurato', async () => {
+    const res = await handle(
+      request('/api/utilizzo'),
+      { ...ENV, ...CLAUDE_ENV },
+      async () => new Response('', { status: 403 }),
+    );
+    expect([res.status, await res.json()]).toEqual([200, { engines: ['claude'] }]);
+  });
+
+  it('offre Claude anche se DeepL non risponde o risponde in modo illeggibile', async () => {
+    const replies = [
+      async () => new Response('<html>manutenzione</html>', { status: 200 }),
+      async () => {
+        throw new Error('rete');
+      },
+    ];
+    for (const deepl of replies) {
+      const res = await handle(request('/api/utilizzo'), { ...ENV, ...CLAUDE_ENV }, deepl);
+      expect([res.status, await res.json()]).toEqual([200, { engines: ['claude'] }]);
+    }
+  });
+
+  it('con la sola chiave Claude non contatta DeepL', async () => {
+    const fetchImpl = vi.fn();
+    const res = await handle(request('/api/utilizzo'), CLAUDE_ENV, fetchImpl);
+    expect(await res.json()).toEqual({ engines: ['claude'] });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('ignora spazi e a capo attorno alle chiavi', async () => {
+    const deepl = vi.fn(async () => json({ character_count: 1, character_limit: 2 }));
+    await handle(request('/api/utilizzo'), { ...ENV, DEEPL_KEY: ' chiave:fx\n' }, deepl);
+    const [url, init] = deepl.mock.calls[0];
+    expect(url).toBe('https://api-free.deepl.com/v2/usage');
+    expect(init.headers.authorization).toBe('DeepL-Auth-Key chiave:fx');
+    const res = await handle(request('/api/utilizzo'), { PASSWORD: 'segreta', ANTHROPIC_API_KEY: '  ' }, vi.fn());
+    expect([res.status, (await res.json()).error]).toEqual([500, 'configurazione']);
+  });
+
+  it('traduce con Claude chiedendo una risposta JSON con i tag conservati', async () => {
+    const fetchImpl = vi.fn(async () => claudeMessage(JSON.stringify({ translations: ['Ciao <t1>mondo</t1>'] })));
+    const body = { ...translateBody, engine: 'claude', source: 'EN-GB' };
+    const res = await handle(request('/api/traduci', { method: 'POST', body }), { ...ENV, ...CLAUDE_ENV }, fetchImpl);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ translations: [{ text: 'Ciao <t1>mondo</t1>' }] });
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(String(url)).toBe('https://api.anthropic.com/v1/messages');
+    expect(new Headers(init.headers).get('x-api-key')).toBe('sk-ant-prova');
+    const sent = JSON.parse(init.body);
+    expect(sent.model).toBe(CLAUDE_MODEL);
+    expect(sent.stream).toBeUndefined();
+    expect(sent.max_tokens).toBe(16000);
+    expect(sent.output_config.format.type).toBe('json_schema');
+    expect(sent.system).toMatch(/tag/i);
+    expect(JSON.parse(sent.messages[0].content)).toEqual({ source: 'EN-GB', target: 'IT', texts: translateBody.texts });
+  });
+
+  it('usa Claude in mancanza di DeepL e il modello configurato', async () => {
+    const fetchImpl = vi.fn(async () => claudeMessage(JSON.stringify({ translations: ['a', 'b'] })));
+    const env = { ...CLAUDE_ENV, CLAUDE_MODEL: 'claude-opus-5-5' };
+    const res = await handle(
+      request('/api/traduci', { method: 'POST', body: { texts: ['x', 'y'], target: 'IT' } }),
+      env,
+      fetchImpl,
+    );
+    expect(await res.json()).toEqual({ translations: [{ text: 'a' }, { text: 'b' }] });
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).model).toBe('claude-opus-5-5');
+  });
+
+  it('lascia vuoto tutto il lotto se le traduzioni non si possono abbinare ai segmenti', async () => {
+    const body = { texts: ['x', 'y'], target: 'IT', engine: 'claude' };
+    const replies = [
+      claudeMessage(JSON.stringify({ translations: ['x e y insieme'] })),
+      claudeMessage(JSON.stringify({ translations: ['x', 'y', 'z'] })),
+      claudeMessage(JSON.stringify({ translations: ['x', 2] })),
+      claudeMessage('{"translations": ["x"', 'max_tokens'),
+      claudeMessage('', 'refusal'),
+      claudeMessage('non json'),
+    ];
+    for (const reply of replies) {
+      const res = await handle(request('/api/traduci', { method: 'POST', body }), CLAUDE_ENV, async () => reply);
+      expect([res.status, await res.json()]).toEqual([200, { translations: [null, null] }]);
+    }
+  });
+
+  it('respinge un motore non configurato', async () => {
+    const body = { ...translateBody, engine: 'claude' };
+    const res = await handle(request('/api/traduci', { method: 'POST', body }), ENV, vi.fn());
+    expect([res.status, await res.json()]).toEqual([400, { error: 'richiesta_non_valida', campo: 'engine' }]);
+  });
+
+  it('traduce gli errori di Claude in codici del proxy', async () => {
+    const body = { ...translateBody, engine: 'claude' };
+    const cases = [
+      [401, 502, 'configurazione'],
+      [403, 502, 'configurazione'],
+      [429, 429, 'troppe_richieste'],
+      [400, 400, 'richiesta_non_valida'],
+      [529, 502, 'servizio'],
+    ];
+    for (const [claudeStatus, status, error] of cases) {
+      const res = await handle(
+        request('/api/traduci', { method: 'POST', body }),
+        CLAUDE_ENV,
+        claudeError(claudeStatus),
+      );
+      expect([res.status, (await res.json()).error]).toEqual([status, error]);
+    }
   });
 });

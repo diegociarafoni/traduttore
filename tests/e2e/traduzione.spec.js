@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { login, mockApi, prepare, translateAndDownload, zipText } from './helpers.js';
 import { FIXTURES } from './fixtures.js';
 import { API_URL } from '../../playwright.config.js';
+import { USAGE } from '../support/fake-api.js';
 
 test.describe('RF-01 RF-02 RF-03 RF-04 caricamento e opzioni', () => {
   test('rileva la lingua, propone italiano e il formato di ingresso', async ({ page }) => {
@@ -182,7 +183,7 @@ test.describe('RF-11 durante la traduzione', () => {
     await page.getByRole('button', { name: 'Traduci' }).click();
     await expect(page.locator('#drop')).toHaveAttribute('aria-disabled', 'true');
     await expect(page.locator('#file')).toBeDisabled();
-    for (const id of ['#source', '#target', '#out-format']) await expect(page.locator(id)).toBeDisabled();
+    for (const id of ['#engine', '#source', '#target', '#out-format']) await expect(page.locator(id)).toBeDisabled();
     release();
     await expect(page.getByRole('link', { name: /^Scarica / })).toBeVisible();
     await expect(page.locator('#drop')).not.toHaveAttribute('aria-disabled', 'true');
@@ -216,5 +217,33 @@ test.describe('RF-09 preferenze memorizzate', () => {
     await page.goto('/');
     await expect(page.locator('#target')).toHaveValue('it');
     await expect(page.getByRole('button', { name: 'Traduci' })).toBeVisible();
+  });
+});
+
+test.describe('RF-22 motore di traduzione', () => {
+  test('con un solo motore la scelta non compare', async ({ page }) => {
+    const requests = await prepare(page, 'guida.md');
+    await expect(page.getByLabel('Motore di traduzione')).toBeHidden();
+    await translateAndDownload(page);
+    expect(requests[0].engine).toBe('deepl');
+  });
+
+  test('con DeepL e Claude si sceglie il motore; la quota vale solo per DeepL', async ({ page }) => {
+    const requests = await prepare(page, 'guida.md', { usage: { ...USAGE, engines: ['deepl', 'claude'] } });
+    const engine = page.getByLabel('Motore di traduzione');
+    await expect(engine).toHaveValue('deepl');
+    await expect(page.locator('#file-info')).toContainText('caratteri questo mese');
+    await engine.selectOption({ label: 'Claude (Anthropic)' });
+    await expect(page.locator('#file-info')).not.toContainText('caratteri questo mese');
+    await translateAndDownload(page);
+    expect(requests[0].engine).toBe('claude');
+  });
+
+  test('con la sola chiave Claude si traduce con Claude senza quota', async ({ page }) => {
+    const requests = await prepare(page, 'guida.md', { usage: { engines: ['claude'] } });
+    await expect(page.getByLabel('Motore di traduzione')).toBeHidden();
+    await expect(page.locator('#file-info')).not.toContainText('caratteri questo mese');
+    await translateAndDownload(page);
+    expect(requests[0].engine).toBe('claude');
   });
 });

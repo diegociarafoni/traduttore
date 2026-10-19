@@ -27,6 +27,12 @@ describe('RF-09 RF-05 chiamata al proxy di traduzione', () => {
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ source: 'FR', target: 'PT-PT' });
   });
 
+  it('RF-22 indica al proxy il motore scelto', async () => {
+    const fetch = vi.fn(async (url, init) => json(fakeTranslations(JSON.parse(init.body))));
+    await client(fetch).translator({ engine: 'claude', targetLang: byCode('it') })(['Hello']);
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ engine: 'claude', target: 'IT' });
+  });
+
   it('segnala con null le traduzioni mancanti', async () => {
     const fetch = vi.fn(async () => json({ translations: [{ text: 'uno' }] }));
     expect(await client(fetch).translator({ targetLang: byCode('it') })(['a', 'b'])).toEqual(['uno', null]);
